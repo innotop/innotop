@@ -1,0 +1,66 @@
+Innotop is easy to install.  Follow one of the methods below.
+
+===== YOUR DISTRIBUTION'S PACKAGE
+
+Some pre-built packages can be downloaded directly from Sourceforge.  If you
+want to contribute a package, please contact us about it.
+
+At this time, innotop is included in the following distributions:
+
+   * FreeBSD
+   * Gentoo GNU/Linux
+   * Ubuntu and Debian
+   * RPM packages for many platforms can be found at the openSUSE buildservice:
+      * http://download.opensuse.org/repositories/server:/database/Fedora_Extras_5/
+      * http://download.opensuse.org/repositories/server:/database/Fedora_Extras_6/
+      * http://download.opensuse.org/repositories/server:/database/openSUSE_10.2/
+      * http://download.opensuse.org/repositories/server:/database/openSUSE_Factory/
+      * http://download.opensuse.org/repositories/server:/database/SLES_9/
+      * http://download.opensuse.org/repositories/server:/database/SLE_10/
+      * http://download.opensuse.org/repositories/server:/database/SUSE_Linux_10.0/
+      * http://download.opensuse.org/repositories/server:/database/SUSE_Linux_10.1/
+
+===== INSTALL FROM A TARBALL
+
+If you install from the tarball, extract the tarball and go into the resulting
+directory:
+
+   tar zxvf innotop-<version>.tar.gz
+   cd innotop-<version>
+
+Generate the makefile, which will check Perl module dependencies and so forth:
+
+   perl Makefile.PL
+
+Install the program and man page:
+
+   make install
+
+To remove the files, simply run:
+
+   make uninstall
+
+===== BUILD AN INSTALLABLE RPM
+
+If your system is RPM-based, you can generate an installable RPM directly from
+the tarball with the following command:
+
+   rpmbuild -tb --clean innotop-<version>.tar.gz
+
+You can then install that RPM via your usual means (varies by distribution).
+
+===== ON MICROSOFT WINDOWS
+
+I have tested installation with ActivePerl 5.8.8.  Use the Perl Package Manager
+tool to install Time-HiRes, DBD-mysql, Term-ANSIColor, Win32::Console::ANSI,
+and Term-ReadLine.  These aren't absolutely required, but they make it much
+easier to use innotop!  If your installation doesn't have it already,
+Term-ReadKey and List::Util are *required* as well.  These are part of the
+standard distribution unless you're running a very old version of Perl.
+
+After that, simply unpack the zip or tarball file from Sourceforge and run
+innotop from within a command prompt.  The only files you need are innotop and
+InnoDBParser.pm.
+
+C:\> cd Path\To\Innotop\Installation\
+C:\> perl innotop
