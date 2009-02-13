@@ -10,6 +10,7 @@ use Data::Dumper;
 use DBI;
 use English qw(-no_match_vars);
 use File::Basename qw(dirname);
+use File::Temp qw(tempfile);
 use Getopt::Long;
 use List::Util qw(max min maxstr sum);
 use InnoDBParser;
@@ -117,6 +118,10 @@ if ( $opts{version} ) {
    exit(0);
 }
 
+if ( $opts{c} and ! -f $opts{c} ) {
+   print $opts{c} . " doesn't exist.  Exiting.\n";
+   exit(1);
+}
 if ( $opts{'help'} ) {
    print "Usage: innotop <options> <innodb-status-file>\n\n";
    my $maxw = max(map { length($_->{l}) + ($_->{n} ? 4 : 0)} @opt_spec);
@@ -2442,6 +2447,10 @@ my $clearing_deadlocks  = 0;
 
 # Find the home directory; it's different on different OSes.
 my $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
+
+# Configuration files
+my $default_home_conf = "$homepath/.innotop/innotop.conf";
+my $default_central_conf = "/etc/innotop/innotop.conf";
 
 # If terminal coloring is available, use it.  The only function I want from
 # the module is the colored() function.
@@ -5523,38 +5532,87 @@ sub core_dump {
    print $msg;
 }
 
+# migrate_config {{{3
+sub migrate_config {
+
+   my ($old_filename, $new_filename) = @_;
+
+   # don't proceed if old file doesn't exist
+   if ( ! -f $old_filename ) {
+      die "Error migrating '$old_filename': file doesn't exist.\n";
+   }
+   # don't migrate files if new file exists
+   elsif ( -f $new_filename ) {
+      die "Error migrating '$old_filename' to '$new_filename': new file already exists.\n";
+   }
+   # if migrating from one file to another in the same directory, just rename them
+   if (dirname($old_filename) eq dirname($new_filename)) {
+      rename($old_filename, $new_filename)
+         or die "Can't rename '$old_filename' to '$new_filename': $OS_ERROR";
+   }
+   # otherwise, move the existing conf file to a temp file, make the necessary directory structure,
+   # and move the temp conf file to its new home
+   else {
+      my $tmp = File::Temp->new( TEMPLATE => 'innotopXXXXX', DIR => $homepath, SUFFIX => '.conf');
+      my $tmp_filename = $tmp->filename;
+      my $dirname = dirname($new_filename);
+      rename($old_filename, $tmp_filename)
+         or die "Can't rename '$old_filename' to '$tmp_filename': $OS_ERROR";
+      mkdir($dirname) or die "Can't create directory '$dirname': $OS_ERROR";
+      mkdir("$dirname/plugins") or die "Can't create directory '$dirname/plugins': $OS_ERROR";
+      rename($tmp_filename, $new_filename)
+         or die "Can't rename '$tmp_filename' to '$new_filename': $OS_ERROR";
+   }
+}
+
 # load_config {{{3
 sub load_config {
+    
+   my ($filename, $old_filename, $answer);
 
-   my $filename = $opts{c} || "$homepath/.innotop/innotop.ini";
-   my $dirname  = dirname($filename);
-   if ( -f $dirname && !$opts{c} ) {
-      # innotop got upgraded and this is the old config file.
-      my $answer = pause("Innotop's default config location has moved to $filename.  Move old config file $dirname there now? y/n");
+   if ($opts{c}) {
+      $filename = $opts{c};
+   }  
+   # innotop got upgraded and this is an old config file.
+   elsif ( -f "$homepath/.innotop" or -f "$homepath/.innotop/innotop.ini" ) {
+      $filename = $default_home_conf;
+      if ( -f  "$homepath/.innotop") {
+         $old_filename = "$homepath/.innotop";
+      }
+      elsif ( -f "$homepath/.innotop/innotop.ini" ) {
+         $old_filename = "$homepath/.innotop/innotop.ini";
+      }
+      $answer = pause("Innotop's default config location has moved to '$filename'.  Move old config file '$old_filename' there now? y/n");
       if ( lc $answer eq 'y' ) {
-         rename($dirname, "$homepath/innotop.ini")
-            or die "Can't rename '$dirname': $OS_ERROR";
-         mkdir($dirname) or die "Can't create directory '$dirname': $OS_ERROR";
-         mkdir("$dirname/plugins") or die "Can't create directory '$dirname/plugins': $OS_ERROR";
-         rename("$homepath/innotop.ini", $filename)
-            or die "Can't rename '$homepath/innotop.ini' to '$filename': $OS_ERROR";
+         migrate_config($old_filename, $filename);
       }
       else {
          print "\nInnotop will now exit so you can fix the config file.\n";
          exit(0);
       }
    }
-
-   if ( ! -d $dirname ) {
-      mkdir $dirname
-         or die "Can't create directory '$dirname': $OS_ERROR";
+   elsif ( -f $default_home_conf ) {
+      $filename = $default_home_conf;
    }
-   if ( ! -d "$dirname/plugins" ) {
-      mkdir "$dirname/plugins"
-         or die "Can't create directory '$dirname/plugins': $OS_ERROR";
+   elsif ( -f $default_central_conf ) {
+      $filename = $default_central_conf;
+   }
+   # if no conf file exists, create $default_home_conf
+   else {
+      $filename = $default_home_conf;
+      my $dirname  = dirname($filename);
+
+      if ( ! -d $dirname ) {
+         mkdir $dirname
+            or die "Can't create directory '$dirname': $OS_ERROR";
+      }
+      if ( ! -d "$dirname/plugins" ) {
+         mkdir "$dirname/plugins"
+            or die "Can't create directory '$dirname/plugins': $OS_ERROR";
+      }
    }
 
-   if ( -f $filename ) {
+   if ( -f "$filename" ) {
       open my $file, "<", $filename or die("Can't open '$filename': $OS_ERROR");
 
       # Check config file version.  Just ignore if either innotop or the file has
