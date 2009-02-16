@@ -23,6 +23,14 @@ use warnings FATAL => 'all';
 
 our $VERSION = '1.6.0';
 
+# Find the home directory; it's different on different OSes.
+our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
+
+# Configuration files
+our $default_home_conf = "$homepath/.innotop/innotop.conf";
+our $default_central_conf = "/etc/innotop/innotop.conf";
+our $conf_file = "";
+
 package InnoDBParser;
 
 use Data::Dumper;
@@ -1006,7 +1014,7 @@ use Data::Dumper;
 use DBI;
 use English qw(-no_match_vars);
 use File::Basename qw(dirname);
-use File::Temp qw(tempfile);
+use File::Temp;
 use Getopt::Long;
 use List::Util qw(max min maxstr sum);
 use POSIX qw(ceil);
@@ -1082,6 +1090,8 @@ my @opt_spec = (
    { s => 'delay|d=f',  d => 'Delay between updates in seconds',  c => 'interval' },
    { s => 'mode|m=s',   d => 'Operating mode to start in',        c => 'mode' },
    { s => 'inc|i!',     d => 'Measure incremental differences',   c => 'status_inc' },
+   { s => 'write|w',    d => 'Write running configuration into home directory if no config files were loaded' },
+   { s => 'skipcentral|s',     d => 'Skip reading the central configuration file' },
    { s => 'version',    d => 'Output version information and exit' },
 );
 
@@ -3436,13 +3446,6 @@ my @current_queries;
 my $lines_printed       = 0;
 my $clock               = 0;   # Incremented with every wake-sleep cycle
 my $clearing_deadlocks  = 0;
-
-# Find the home directory; it's different on different OSes.
-my $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
-
-# Configuration files
-my $default_home_conf = "$homepath/.innotop/innotop.conf";
-my $default_central_conf = "/etc/innotop/innotop.conf";
 
 # If terminal coloring is available, use it.  The only function I want from
 # the module is the colored() function.
@@ -6560,23 +6563,23 @@ sub migrate_config {
 # load_config {{{3
 sub load_config {
     
-   my ($filename, $old_filename, $answer);
+   my ($old_filename, $answer);
 
    if ($opts{c}) {
-      $filename = $opts{c};
+      $conf_file = $opts{c};
    }  
    # innotop got upgraded and this is an old config file.
    elsif ( -f "$homepath/.innotop" or -f "$homepath/.innotop/innotop.ini" ) {
-      $filename = $default_home_conf;
+      $conf_file = $default_home_conf;
       if ( -f  "$homepath/.innotop") {
          $old_filename = "$homepath/.innotop";
       }
       elsif ( -f "$homepath/.innotop/innotop.ini" ) {
          $old_filename = "$homepath/.innotop/innotop.ini";
       }
-      $answer = pause("Innotop's default config location has moved to '$filename'.  Move old config file '$old_filename' there now? y/n");
+      $answer = pause("Innotop's default config location has moved to '$conf_file'.  Move old config file '$old_filename' there now? y/n");
       if ( lc $answer eq 'y' ) {
-         migrate_config($old_filename, $filename);
+         migrate_config($old_filename, $conf_file);
       }
       else {
          print "\nInnotop will now exit so you can fix the config file.\n";
@@ -6584,28 +6587,18 @@ sub load_config {
       }
    }
    elsif ( -f $default_home_conf ) {
-      $filename = $default_home_conf;
+      $conf_file = $default_home_conf;
    }
-   elsif ( -f $default_central_conf ) {
-      $filename = $default_central_conf;
+   elsif ( -f $default_central_conf and not $opts{s} ) {
+      $conf_file = $default_central_conf;
    }
-   # if no conf file exists, create $default_home_conf
    else {
-      $filename = $default_home_conf;
-      my $dirname  = dirname($filename);
-
-      if ( ! -d $dirname ) {
-         mkdir $dirname
-            or die "Can't create directory '$dirname': $OS_ERROR";
-      }
-      if ( ! -d "$dirname/plugins" ) {
-         mkdir "$dirname/plugins"
-            or die "Can't create directory '$dirname/plugins': $OS_ERROR";
-      }
+      # if no config file was loaded, default readonly to 1 unless user wants to write config
+      $config{readonly}->{val} = 1 unless $opts{w};
    }
 
-   if ( -f "$filename" ) {
-      open my $file, "<", $filename or die("Can't open '$filename': $OS_ERROR");
+   if ( -f "$conf_file" ) {
+      open my $file, "<", $conf_file or die("Can't open '$conf_file': $OS_ERROR");
 
       # Check config file version.  Just ignore if either innotop or the file has
       # garbage in the version number.
@@ -6627,7 +6620,7 @@ sub load_config {
                   # If the config file is between the endpoints and innotop is greater than
                   # the endpoint, innotop has a newer config file format than the file.
                   if ( $cfg_ver ge $start && $cfg_ver lt $end && $innotop_ver ge $end ) {
-                     my $msg = "innotop's config file format has changed.  Overwrite $filename?  y or n";
+                     my $msg = "innotop's config file format has changed.  Overwrite $conf_file?  y or n";
                      if ( pause($msg) eq 'n' ) {
                         $config{readonly}->{val} = 1;
                         print "\ninnotop will not save any configuration changes you make.";
@@ -6652,7 +6645,7 @@ sub load_config {
             warn "Unknown config file section '$1'";
          }
       }
-      close $file or die("Can't close $filename: $OS_ERROR");
+      close $file or die("Can't close $conf_file: $OS_ERROR");
    }
 
 }
@@ -7130,12 +7123,41 @@ sub load_config_tbl_meta {
 
 # save_config {{{3
 sub save_config {
+   print "\n";
    return if $config{readonly}->{val};
+   # return if no config file was loaded and -w wasn't specified
+   if (not $conf_file) {
+      if (not $opts{w}) {
+         return;
+      }
+      else {
+         # if no config was loaded but -w was specified,
+         # write to $default_home_conf
+         $conf_file = $default_home_conf;
+      }
+   }
+   elsif ($conf_file and $opts{w}) {
+     print "Loaded config file on start-up, so ignoring -w (see --help)\n"
+   }
+   
+   my $dirname  = dirname($conf_file);
+
+   # if directories don't exist, create them.  This could cause errors
+   # or warnings if a central config doesn't have readonly=1, but being
+   # flexible requires giving the user enough rope to hang themselves with.
+   if ( ! -d $dirname ) {
+      mkdir $dirname
+         or die "Can't create directory '$dirname': $OS_ERROR";
+   }
+   if ( ! -d "$dirname/plugins" ) {
+      mkdir "$dirname/plugins"
+         or warn "Can't create directory '$dirname/plugins': $OS_ERROR\n";
+   }
+
    # Save to a temp file first, so a crash doesn't destroy the main config file
-   my $newname  = $opts{c} || "$homepath/.innotop/innotop.ini";
-   my $filename = $newname . '_tmp';
-   open my $file, "+>", $filename
-      or die("Can't write to $filename: $OS_ERROR");
+   my $tmpfile = File::Temp->new( TEMPLATE => 'innotopXXXXX', DIR => $dirname, SUFFIX => '.conf.tmp');
+   open my $file, "+>", $tmpfile
+      or die("Can't write to $tmpfile: $OS_ERROR");
    print $file "version=$VERSION\n";
 
    foreach my $section ( @ordered_config_file_sections ) {
@@ -7146,8 +7168,8 @@ sub save_config {
    }
 
    # Now clobber the main config file with the temp.
-   close $file or die("Can't close $filename: $OS_ERROR");
-   rename($filename, $newname) or die("Can't rename $filename to $newname: $OS_ERROR");
+   close $file or die("Can't close $tmpfile: $OS_ERROR");
+   rename($tmpfile, $conf_file) or die("Can't rename $tmpfile to $conf_file: $OS_ERROR");
 }
 
 # load_config_connections {{{3
