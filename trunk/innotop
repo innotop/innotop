@@ -6007,7 +6007,7 @@ sub create_statusbar {
 
 # Database connections {{{3
 sub add_new_dsn {
-   my ( $name ) = @_;
+   my ( $name, $dsn, $dl_table, $have_user, $user, $have_pass, $pass, $savepass ) = @_;
 
    if ( defined $name ) {
       $name =~ s/[\s:;]//g;
@@ -6022,23 +6022,30 @@ sub add_new_dsn {
       } until ( $name );
    }
 
-   my $dsn;
-   do {
+   if ( !$dsn ) {
+      do {
+         $clear_screen_sub->();
+         print "Typical DSN strings look like\n   DBI:mysql:;host=hostname;port=port\n"
+            . "The db and port are optional and can usually be omitted.\n"
+            . "If you specify 'mysql_read_default_group=mysql' many options can be read\n"
+            . "from your mysql options files (~/.my.cnf, /etc/my.cnf).\n\n";
+         $dsn = prompt("Enter a DSN string", undef, "DBI:mysql:;mysql_read_default_group=mysql;host=$name");
+      } until ( $dsn );
+   }
+   if ( !$dl_table ) {
       $clear_screen_sub->();
-      print "Typical DSN strings look like\n   DBI:mysql:;host=hostname;port=port\n"
-         . "The db and port are optional and can usually be omitted.\n"
-         . "If you specify 'mysql_read_default_group=mysql' many options can be read\n"
-         . "from your mysql options files (~/.my.cnf, /etc/my.cnf).\n\n";
-      $dsn = prompt("Enter a DSN string", undef, "DBI:mysql:;mysql_read_default_group=mysql;host=$name");
-   } until ( $dsn );
-
-   $clear_screen_sub->();
-   my $dl_table = prompt("Optional: enter a table (must not exist) to use when resetting InnoDB deadlock information",
-      undef, 'test.innotop_dl');
+      my $dl_table = prompt("Optional: enter a table (must not exist) to use when resetting InnoDB deadlock information",
+         undef, 'test.innotop_dl');
+   }
 
    $connections{$name} = {
-      dsn      => $dsn,
-      dl_table => $dl_table,
+      dsn       => $dsn,
+      dl_table  => $dl_table,
+      have_user => $have_user,
+      user      => $user,
+      have_pass => $have_pass,
+      pass      => $pass,
+      savepass  => $savepass
    };
 }
 
@@ -6379,12 +6386,14 @@ sub get_new_db_connection {
    my $dsn = $connections{$connection}
       or die "No connection named '$connection' is defined in your configuration";
 
-   if ( !defined $dsn->{have_user} ) {
+   # don't ask for a username if mysql_read_default_group=client is in the DSN
+   if ( !defined $dsn->{have_user} and $dsn->{dsn} !~ /mysql_read_default_group=client/ ) {
       my $answer = prompt("Do you want to specify a username for $connection?", undef, 'n');
       $dsn->{have_user} = $answer && $answer =~ m/1|y/i;
    }
 
-   if ( !defined $dsn->{have_pass} ) {
+   # don't ask for a password if mysql_read_default_group=client is in the DSN
+   if ( !defined $dsn->{have_pass} and $dsn->{dsn} !~ /mysql_read_default_group=client/ ) {
       my $answer = prompt("Do you want to specify a password for $connection?", undef, 'n');
       $dsn->{have_pass} = $answer && $answer =~ m/1|y/i;
    }
@@ -6593,8 +6602,12 @@ sub load_config {
       $conf_file = $default_central_conf;
    }
    else {
-      # if no config file was loaded, default readonly to 1 unless user wants to write config
+      # if no config file was loaded: 
+      #   * set readonly to 1 unless user wants to write config
+      #   * connect to a MySQL database on localhost using mysql_read_default_group=client
       $config{readonly}->{val} = 1 unless $opts{w};
+      add_new_dsn('localhost', 'DBI:mysql:;host=localhost;mysql_read_default_group=client', 'test.innotop_dl');
+
    }
 
    if ( -f "$conf_file" ) {
