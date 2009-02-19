@@ -3545,7 +3545,7 @@ my %config = (
       pat  => $bool_regex,
    },
    readonly => {
-      val  => 0,
+      val  => 1,
       note => 'Whether the config file is read-only',
       conf => [ qw() ],
       pat  => $bool_regex,
@@ -3608,7 +3608,7 @@ my %config = (
       conf => 'ALL',
    },
    mode => {
-      val  => "T",
+      val  => "Q",
       note => "Which mode to start in",
       cmdline => 1,
    },
@@ -3852,7 +3852,7 @@ eval {
 
    while (++$clock) {
 
-      my $mode = $config{mode}->{val} || 'T';
+      my $mode = $config{mode}->{val} || 'Q';
       if ( !$modes{$mode} ) {
          die "Mode '$mode' doesn't exist; try one of these:\n"
             . join("\n", map { "  $_ $modes{$_}->{hdr}" }  sort keys %modes)
@@ -5992,7 +5992,7 @@ sub create_statusbar {
             $uptime,
             $ibinfo,
             shorten($qps) . " QPS",
-            ($vars->{Threads} || 0) . " thd",
+            ($vars->{Threads} || 0) . "/" . ($vars->{Threads_running} || 0) . "/" . ($vars->{Threads_cached} || 0) . " con/run/cac thds",
             $cxn)));
    }
    else {
@@ -6603,9 +6603,9 @@ sub load_config {
    }
    else {
       # if no config file was loaded: 
-      #   * set readonly to 1 unless user wants to write config
+      #   * set readonly to 0 if user wants to write config
       #   * connect to a MySQL database on localhost using mysql_read_default_group=client
-      $config{readonly}->{val} = 1 unless $opts{w};
+      $config{readonly}->{val} = 0 if $opts{w};
       add_new_dsn('localhost', 'DBI:mysql:;host=localhost;mysql_read_default_group=client', 'test.innotop_dl');
 
    }
