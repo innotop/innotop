@@ -10,7 +10,6 @@ WriteMakefile(
         Term::ReadKey => 2.10,
         DBI           => 1.13,
         DBD::mysql    => 1.0,
-        InnoDBParser  => 1.1,
     },
     'LIBS'   => [''],                # e.g., '-lm'
     'DEFINE' => '',                  # e.g., '-DHAVE_SOMETHING'
