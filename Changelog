@@ -1,4 +1,31 @@
-Changelog for innotop and InnoDBParser:
+Changelog for innotop:
+
+2009-02-23: version 1.7.0
+
+   Changes:
+   * supports a central config (/etc/innotop/innotop.conf)
+   * changed the default home directory config to ~/.innotop/innotop.conf
+     (away from .ini)
+   * embedded InnoDBParser.pm into innotop so it can be run with no 
+     installation
+   * no longer writes a new config file by default
+   * added --skipcentral (skip reading central config) and --write (write
+     a config if none were loaded at start-up)
+   * if no config file is loaded, connect to a MySQL database on
+     localhost using mysql_read_default_group=client
+   * embedded maatkit's DSNParser.pm and added support for --user,
+     --password, --host, --port
+   * changed default mode from T (InnoDB Transactions) to Q (Query List)
+   * in addition to connected threads, now displays running and cached
+     threads in statusbar
+   * don't load connections from a config file if any DSN information or
+     a username or password is specified on the command-line
+   
+   Bugs fixed:
+   * fixed bug preventing utilization of command-line options that
+     override default config settings if no config file was loaded
+   * fixed a bug where migrating from an old version of the config will
+     delete ~/innotop.ini, if it exists.  Now uses File::Temp::tempfile().
 
 2007-11-09: version 1.6.0
 
