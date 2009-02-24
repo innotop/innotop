@@ -8675,6 +8675,10 @@ To run innotop non-interactively in a pipe-and-filter configuration:
 
  innotop --count 5 -d 1 -n
 
+To monitor a database on another system using a particular username and password:
+
+ innotop -u <username> -p <password> -h <hostname>
+
 =head1 DESCRIPTION
 
 innotop monitors MySQL servers.  Each of its modes shows you a different aspect
@@ -8694,42 +8698,30 @@ innotop on your system, you should be able to just type "innotop" and press
 Enter; otherwise, you will need to change to innotop's directory and type "perl
 innotop".
 
-The first thing innotop needs to know is how to connect to a MySQL server.  You
-can just enter the hostname of the server, for example "localhost" or
-"127.0.0.1" if the server is on the same machine as innotop.  After this innotop
-will prompt you for a DSN (data source name).  You should be able to just accept
-the defaults by pressing Enter.
+With no options specified, innotop will attempt to connect to a MySQL server on
+localhost using mysql_read_default_group=client for other connection
+parameters.  If you need to specify a different username and password, use the
+-u and -p options, respectively.  To monitor a MySQL database on another
+host, use the -h option.
 
-When innotop asks you about a table to use when resetting InnoDB deadlock
-information, just accept the default for now.  This is an advanced feature you
-can configure later (see L<"D: InnoDB Deadlocks"> for more).
+After you've connected, innotop should show you something like the following:
 
-If you have a .my.cnf file with your MySQL connection defaults, innotop can read
-it, and you won't need to specify a username and password if it's in that file.
-Otherwise, you should answer 'y' to the next couple of prompts.
-
-After this, you should be connected, and innotop should show you something like
-the following:
-
- InnoDB Txns (? for help) localhost, 01:11:19, InnoDB 10s :-), 50 QPS,
+ [RO] Query List (? for help) localhost, 01:11:19, 449.44 QPS, 14/7/163 con/run
  
- CXN        History  Versions  Undo  Dirty Buf  Used Bufs  Txns  MaxTxn
- localhost        7      2035  0 0       0.00%     92.19%     1   07:34
- 
- CXN        ID     User   Host       Txn Status  Time   Undo  Query Tex
- localhost  98379  user1  webserver  ACTIVE      07:34     0  SELECT `c
- localhost  98450  user1  webserver  ACTIVE      01:06     0  INSERT IN
- localhost  97750  user1  webserver  not starte  00:00     0      
- localhost  98375  user1  appserver  not starte  00:00     0      
+ CXN        When   Load  QPS    Slow  QCacheHit  KCacheHit  BpsIn    BpsOut 
+ localhost  Total  0.00  1.07k   697      0.00%     98.17%  476.83k  242.83k
+
+ CXN        Cmd    ID         User  Host      DB   Time   Query
+ localhost  Query  766446598  test  10.0.0.1  foo  00:02  INSERT INTO table (
+
 
 (This sample is truncated at the right so it will fit on a terminal when running
 'man innotop')
 
-This sample comes from a quiet server with few transactions active.  If your
-server is busy, you'll see more output.  Notice the first line on the screen,
-which tells you what mode you're in and what server you're connected to.  You
-can change to other modes with keystrokes; press 'Q' to switch to a list of
-currently running queries.
+If your server is busy, you'll see more output.  Notice the first line on the
+screen, which tells you that readonly is set to true ([RO]), what mode you're
+in and what server you're connected to.  You can change to other modes with
+keystrokes; press 'T' to switch to a list of InnoDB transactions, for example.
 
 Press the '?' key to see what keys are active in the current mode.  You can
 press any of these keys and innotop will either take the requested action or
@@ -8750,10 +8742,6 @@ example, --noinc (or --no-inc) negates L<"--inc">.
 
 =over
 
-=item --help
-
-Print a summary of command-line usage and exit.
-
 =item --color
 
 Enable or disable terminal coloring.  Corresponds to the L<"color"> config file
@@ -8763,10 +8751,6 @@ setting.
 
 Specifies a configuration file to read.  This option is non-sticky, that is to
 say it does not persist to the configuration file itself.
-
-=item --nonint
-
-Enable non-interactive operation.  See L<"NON-INTERACTIVE OPERATION"> for more.
 
 =item --count
 
@@ -8779,10 +8763,13 @@ connections and printing it to the terminal.
 Specifies the amount of time to pause between ticks (refreshes).  Corresponds to
 the configuration option L<"interval">.
 
-=item --mode
+=item --help
 
-Specifies the mode in which innotop should start.  Corresponds to the
-configuration option L<"mode">.
+Print a summary of command-line usage and exit.
+
+=item --host
+
+Host to connect to.
 
 =item --inc
 
@@ -8790,9 +8777,40 @@ Specifies whether innotop should display absolute numbers or relative numbers
 (offsets from their previous values).  Corresponds to the configuration option
 L<"status_inc">.
 
+=item --mode
+
+Specifies the mode in which innotop should start.  Corresponds to the
+configuration option L<"mode">.
+
+=item --nonint
+
+Enable non-interactive operation.  See L<"NON-INTERACTIVE OPERATION"> for more.
+
+=item --password
+
+Password to use for connection.
+
+=item --port
+
+Port to use for connection.
+
+=item --skipcentral
+
+Don't read the central configuration file.
+
+=item --user
+
+User to use for connection.
+
 =item --version
 
 Output version information and exit.
+
+=item --write
+
+Sets the configuration option L<"readonly"> to 0, making innotop write the
+running configuration to ~/.innotop/innotop.conf on exit, if no configuration
+file was loaded at start-up.
 
 =back
 
@@ -9048,8 +9066,9 @@ default.
 
 The first line innotop displays is a "status bar" of sorts.  What it contains
 depends on the mode you're in, and what servers you're monitoring.  The first
-few words are always the innotop mode, such as "InnoDB Txns" for T mode,
-followed by a reminder to press '?' for help at any time.
+few words are always [RO] (if readonly is set to 1), the innotop mode, such as
+"InnoDB Txns" for T mode, followed by a reminder to press '?' for help at any
+time.
 
 =head2 ONE SERVER
 
@@ -9126,8 +9145,8 @@ these slave connections and suggest it as the argument to PURGE MASTER LOGS.
 
 =head1 SERVER CONNECTIONS
 
-When you create a server connection, innotop asks you for a series of inputs, as
-follows:
+When you create a server connection using '@', innotop asks you for a series of
+inputs, as follows:
 
 =over
 
@@ -9179,9 +9198,6 @@ Once you finish answering these questions, you should be connected to a server.
 But innotop isn't limited to monitoring a single server; you can define many
 server connections and switch between them by pressing the '@' key.  See
 L<"SWITCHING BETWEEN CONNECTIONS">.
-
-To create a new connection, press the '@' key and type the name of the new
-connection, then follow the steps given above.
 
 =head1 SERVER GROUPS
 
@@ -9383,20 +9399,23 @@ L<"TABLES">.
 
 =head1 CONFIGURATION FILE
 
-innotop's default configuration file location is in $HOME/.innotop, but can be
+innotop's default configuration file locations are $HOME/.innotop and
+/etc/innotop/innotop.conf, and they are looked for in that order.  If the first
+configuration file exists, the second will not be processed.  Those can be
 overridden with the L<"--config"> command-line option.  You can edit it by hand
-safely.  innotop reads the configuration file when it starts, and writes it out
-again when it exits, so any changes you make while innotop is running will be
-lost.
+safely, however innotop reads the configuration file when it starts, and, if
+readonly is set to 0, writes it out again when it exits.  Thus, if readonly is
+set to 0, any changes you make by hand while innotop is running will be lost.
 
 innotop doesn't store its entire configuration in the configuration file.  It
-has a huge set of default configuration that it holds only in memory, and the
-configuration file only overrides these defaults.  When you customize a default
-setting, innotop notices, and then stores the customizations into the file.
-This keeps the file size down, makes it easier to edit, and makes upgrades
-easier.
+has a huge set of default configuration values that it holds only in memory,
+and the configuration file only overrides these defaults.  When you customize a
+default setting, innotop notices, and then stores the customizations into the
+file.  This keeps the file size down, makes it easier to edit, and makes
+upgrades easier.
 
-A configuration file can be made read-only.  See L<"readonly">.
+A configuration file is read-only be default.  You can override that with
+L<"--write">.  See L<"readonly">.
 
 The configuration file is arranged into sections like an INI file.  Each
 section begins with [section-name] and ends with [/section-name].  Each
@@ -9544,8 +9563,7 @@ Specifies where plugins can be found.  By default, innotop stores plugins in the
 
 =item readonly
 
-Whether the configuration file is readonly.  This cannot be set interactively,
-because it would prevent itself from being written to the configuration file.
+Whether the configuration file is readonly.  This cannot be set interactively.
 
 =item show_cxn_errors
 
@@ -9610,10 +9628,12 @@ name=quoted-value list.
 
 =item connections
 
-This section holds the server connections you have defined.  Each line is in the
-format name=properties, where the properties are a name=value list.  The
+This section holds the server connections you have defined.  Each line is in
+the format name=properties, where the properties are a name=value list.  The
 properties are self-explanatory, and the only one that is treated specially is
-'pass' which is only present if 'savepass' is set.  See L<"SERVER CONNECTIONS">.
+'pass' which is only present if 'savepass' is set.  This section of the
+configuration file will be skipped if any DSN, username, or password
+command-line options are used.  See L<"SERVER CONNECTIONS">.
 
 =item active_connections
 
@@ -10071,7 +10091,7 @@ sort direction.  Press '?' as usual to see which keys are mapped in any mode.
 
 =head2 GROUPING
 
-innotop can group, or aggregate, rows together (I use the terms
+innotop can group, or aggregate, rows together (the terms are used
 interchangeably).  This is quite similar to an SQL GROUP BY clause.  You can
 specify to group on certain columns, or if you don't specify any, the entire set
 of rows is treated as one group.  This is quite like SQL so far, but unlike SQL,
@@ -10814,15 +10834,16 @@ don't see any reason why it won't work on other UNIX-ish operating systems, but
 I don't know for sure.  It also runs on Windows under ActivePerl without
 problem.
 
-I use innotop on MySQL versions 3.23.58, 4.0.27, 4.1.0, 4.1.22, 5.0.26, 5.1.15,
-and 5.2.3.  If it doesn't run correctly for you, that is a bug and I hope you
-report it.
+innotop has been used on MySQL versions 3.23.58, 4.0.27, 4.1.0, 4.1.22, 5.0.26,
+5.1.15, and 5.2.3.  If it doesn't run correctly for you, that is a bug that
+should be reported.
 
 =head1 FILES
 
-$HOMEDIR/.innotop is used to store configuration information.  Files include the
-configuration file innotop.ini, the core_dump file which contains verbose error
-messages if L<"debug"> is enabled, and the plugins/ subdirectory.
+$HOMEDIR/.innotop and/or /etc/innotop are used to store
+configuration information.  Files include the configuration file innotop.conf,
+the core_dump file which contains verbose error messages if L<"debug"> is
+enabled, and the plugins/ subdirectory.
 
 =head1 GLOSSARY OF TERMS
 
@@ -10837,8 +10858,8 @@ displays it.
 
 =head1 ACKNOWLEDGEMENTS
 
-I'm grateful to the following people for various reasons, and hope I haven't
-forgotten to include anyone:
+The following people and organizations are acknowledged for various reasons.
+Hopefully no one has been forgotten.
 
 Allen K. Smith,
 Aurimas Mikalauskas,
@@ -10851,6 +10872,7 @@ David Multer,
 Dr. Frank Ullrich,
 Giuseppe Maxia,
 Google.com Site Reliability Engineers,
+Google Code,
 Jan Pieter Kunst,
 Jari Aalto,
 Jay Pipes,
@@ -10868,9 +10890,9 @@ Steven Kreuzer,
 The Gentoo MySQL Team,
 Trevor Price,
 Yaar Schnitman,
-and probably more people I've neglected to include.
+and probably more people that have not been included.
 
-(If I misspelled your name, it's probably because I'm afraid of putting
+(If your name has been misspelled, it's probably out of fear of putting
 international characters into this documentation; earlier versions of Perl might
 not be able to compile it then).
 
@@ -10897,14 +10919,15 @@ Execute innotop and press '!' to see this information at any time.
 
 =head1 AUTHOR
 
-Baron Schwartz.
+Originally written by Baron Schwartz; currently maintained by Aaron Racine.
 
 =head1 BUGS
 
 You can report bugs, ask for improvements, and get other help and support at
-L<http://sourceforge.net/projects/innotop>.  There are mailing lists, forums,
-a bug tracker, etc.  Please use these instead of contacting me directly, as it
-makes my job easier and benefits others if the discussions are permanent and
-public.  Of course, if you need to contact me in private, please do.
+L<http://code.google.com/p/innotop/>.  There are mailing lists, a source code
+browser, a bug tracker, etc.  Please use these instead of contacting the
+maintainer or author directly, as it makes our job easier and benefits others if the
+discussions are permanent and public.  Of course, if you need to contact us in
+private, please do.
 
 =cut
