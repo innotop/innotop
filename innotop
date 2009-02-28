@@ -2026,7 +2026,10 @@ my %agg_funcs = (
       my @args = grep { defined $_ } @_;
       return (sum(map { m/([\d\.-]+)/g } @args) || 0) / (scalar(@args) || 1);
    },
-   sum   => \&sum,
+   sum   => sub {
+      my @args = grep { defined $_ } @_;
+      return sum(@args);
+   }
 );
 
 # ###########################################################################
