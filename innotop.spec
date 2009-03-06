@@ -3,16 +3,16 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.6.0
+Version:   1.7.0
 Release:   0
-Vendor:    Baron Schwartz <baron@xaprb.com>
-Packager:  Lenz Grimmer <lenz@grimmer.com>
+Vendor:    Aaron Racine <aracine@gmail.com>
+Packager:  Aaron Racine <aracine@gmail.com>
 License:   GPL/Artistic
 Group:     System/Monitoring
-URL:       http://sourceforge.net/projects/innotop/
+URL:       http://innotop.googlecode.com/
 Buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 Buildarch: noarch
-Source:    http://prdownloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
+Source:    http://%name}.googlecode.com/files/%{name}-%{version}.tar.gz
 %define filelist %{name}-%{version}-filelist
 %define maketest 1
 
