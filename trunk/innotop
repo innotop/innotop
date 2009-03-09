@@ -21,7 +21,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.7.0';
+our $VERSION = '1.7.1';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
