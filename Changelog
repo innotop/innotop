@@ -5,6 +5,7 @@ Changelog for innotop:
    Changes:
    * Don't display the CXN column if only one connection is active in 
      the current view
+   * the 'state' column is now visible by default in Query List mode
 
    Bugs fixed:
    * fixed bug where trying to aggregate the time column would result 
