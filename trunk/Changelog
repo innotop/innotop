@@ -1,5 +1,17 @@
 Changelog for innotop:
 
+2009-03-09: version 1.7.1
+
+   Changes:
+   * Don't display the CXN column if only one connection is active in 
+     the current view
+
+   Bugs fixed:
+   * fixed bug where trying to aggregate the time column would result 
+     in a crash if the time column had an undef value in it, which is 
+     the case when a thread is in the 'Connect' state
+   * updated innotop.spec file to reflect current version
+
 2009-02-23: version 1.7.0
 
    Changes:
