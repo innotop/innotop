@@ -2522,7 +2522,7 @@ my %tbl_meta = (
          info            => { src => 'info',       minw => 0,  maxw => 0, trans => [ qw(no_ctrl_char) ] },
          cnt             => { src => 'id',         minw => 0,  maxw => 0 },
       },
-      visible => [ qw(cxn cmd cnt mysql_thread_id user hostname db time info)],
+      visible => [ qw(cxn cmd cnt mysql_thread_id state user hostname db time info)],
       filters => [ qw(hide_self hide_inactive hide_slave_io) ],
       sort_cols => '-time cxn hostname mysql_thread_id',
       sort_dir => '1',
@@ -5781,6 +5781,16 @@ sub set_to_tbl {
    my ( $rows, $tbl ) = @_;
    my $meta = $tbl_meta{$tbl} or die "No such table $tbl in tbl_meta";
 
+   # don't show cxn if there's only one connection being displayed
+   my @visible;
+   if (scalar @{$modes{$config{mode}->{val}}->{connections}} == 1) {
+      map { push @visible, $_ if $_ !~ /^cxn$/ } @{$meta->{visible}};
+      delete $$rows[0]{cxn} if defined $$rows[0]{cxn};
+   }
+   else {
+      @visible = @{$meta->{visible}};
+   }
+
    if ( !$meta->{pivot} ) {
 
       # Hook in event listeners
@@ -5933,7 +5943,7 @@ sub set_to_tbl {
       # If the table isn't pivoted, just show all columns that are supposed to
       # be shown; but eliminate aggonly columns if the table isn't aggregated.
       my $aggregated = $meta->{aggregate};
-      $fmt_cols = [ grep { $aggregated || !$meta->{cols}->{$_}->{aggonly} } @{$meta->{visible}} ];
+      $fmt_cols = [ grep { $aggregated || !$meta->{cols}->{$_}->{aggonly} } @visible ];
       $fmt_meta = { map  { $_ => $meta->{cols}->{$_}                      } @$fmt_cols };
 
       # If the table is aggregated, re-order the group_by columns to the left of
