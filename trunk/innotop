@@ -379,6 +379,7 @@ my %innodb_section_headers = (
    "FILE I/O"                              => "io",
    "LATEST DETECTED DEADLOCK"              => "dl",
    "LATEST FOREIGN KEY ERROR"              => "fk",
+   "BACKGROUND THREAD"                     => "bt",
 );
 
 my %parser_for = (
