@@ -1417,6 +1417,7 @@ my @opt_spec = (
    { s => 'password|p=s',   d => 'Password to use for connection' },
    { s => 'host|h=s',   d => 'Connect to host' },
    { s => 'port|P=i',   d => 'Port number to use for connection' },
+   { s => 'socket|S=s', d => 'MySQL socket to use for connection' },
 );
 
 # This is the container for the command-line options' values to be stored in
@@ -6926,7 +6927,7 @@ sub load_config {
     
    my ($old_filename, $answer);
 
-   if ( $opts{u} or $opts{p} or $opts{h} or $opts{P} ) {
+   if ( $opts{u} or $opts{p} or $opts{h} or $opts{P} or $opts{S} ) {
      my @params = $dsn_parser->get_cxn_params(\%opts); # dsn=$params[0]
      add_new_dsn($opts{h} || 'localhost', $params[0], 'test.innotop_dl', 
                  $opts{u} ? 1 : 0, $opts{u}, $opts{p} ? 1 : 0, $opts{p});
