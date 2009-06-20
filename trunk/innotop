@@ -5790,7 +5790,22 @@ sub set_to_tbl {
       $meta->{visible} = \@visible;
       map { push @group_by, $_ if $_ !~ /^cxn$/ } @{$meta->{group_by}};
       $meta->{group_by} = \@group_by;
-      $rows = [ map { delete $$_{cxn} if defined $$_{cxn}; $_ } @$rows ];
+   }
+   # if cxn is not visible and there is now more than one connection, 
+   # make cxn visible again.  assume it's not in group_by if it's not
+   # visible
+   else {
+      my $has_cxn = 0;
+      foreach my $column (@{$meta->{visible}}) {
+         if ($column eq "cxn") {
+           $has_cxn = 1;
+           last;
+         }
+      }
+      if (not $has_cxn) {
+         unshift @{$meta->{visible}}, "cxn";
+         unshift @{$meta->{group_by}}, "cxn";
+      }
    }
 
    if ( !$meta->{pivot} ) {
