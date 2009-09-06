@@ -3,7 +3,7 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.7.1
+Version:   1.7.2
 Release:   0
 Vendor:    Aaron Racine <aracine@gmail.com>
 Packager:  Aaron Racine <aracine@gmail.com>

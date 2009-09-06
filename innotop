@@ -21,7 +21,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.7.1';
+our $VERSION = '1.7.2';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -93,7 +93,9 @@ sub new {
       },
    };
    foreach my $opt ( @opts ) {
-      MKDEBUG && _d('Adding extra property ' . $opt->{key});
+      if (MKDEBUG) {
+         _d('Adding extra property ' . $opt->{key});
+      }
       $self->{opts}->{$opt->{key}} = { desc => $opt->{desc}, copy => $opt->{copy} };
    }
    return bless $self, $class;
@@ -5785,7 +5787,7 @@ sub set_to_tbl {
 
    # don't show cxn if there's only one connection being displayed
    my (@visible, @group_by);
-   if (scalar @{$modes{$config{mode}->{val}}->{connections}} == 1) {
+   if (scalar @{$modes{$config{mode}->{val}}->{connections}} <= 1) {
       map { push @visible, $_ if $_ !~ /^cxn$/ } @{$meta->{visible}};
       $meta->{visible} = \@visible;
       map { push @group_by, $_ if $_ !~ /^cxn$/ } @{$meta->{group_by}};
