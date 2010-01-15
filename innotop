@@ -1490,6 +1490,12 @@ my %exprs = (
    TxnTimeRemain     => q{ defined undo_log_entries && defined $pre->{undo_log_entries} && undo_log_entries < $pre->{undo_log_entries} ? undo_log_entries / (($pre->{undo_log_entries} - undo_log_entries)/((active_secs-$pre->{active_secs})||1))||1 : 0},
    SlaveCatchupRate  => ' defined $cur->{seconds_behind_master} && defined $pre->{seconds_behind_master} && $cur->{seconds_behind_master} < $pre->{seconds_behind_master} ? ($pre->{seconds_behind_master}-$cur->{seconds_behind_master})/($cur->{Uptime_hires}-$pre->{Uptime_hires}) : 0',
    QcacheHitRatio    => q{(Qcache_hits||0)/(((Com_select||0)+(Qcache_hits||0))||1)},
+   QueryDetail       => q{sprintf("%2d/%2d/%2d/%2d",
+                           ((Com_select||0)+(Qcache_hits||0))/(Questions||1)*100,
+                            ((Com_insert||0)+(Com_replace||0))/(Questions||1)*100,
+                            (Com_update||0)/(Questions||1)*100,
+                            (Com_delete||0)/(Questions||1)*100,
+)},
 );
 
 # ###########################################################################
@@ -1657,6 +1663,7 @@ my %columns = (
    port                        => { hdr => 'Port',                num => 1, label => 'Client port number', },
    possible_keys               => { hdr => 'Poss. Keys',          num => 0, label => 'Possible keys' },
    proc_no                     => { hdr => 'Proc',                num => 1, label => 'Process number' },
+   q_detail                    => { hdr => 'Se/In/Up/De%',        num => 0, label => 'Detailed Query', },
    q_cache_hit                 => { hdr => 'QCacheHit',           num => 1, label => 'Query cache hit ratio', },
    qps                         => { hdr => 'QPS',                 num => 1, label => 'How many queries/sec', },
    queries_in_queue            => { hdr => 'Queries Queued',      num => 1, label => 'Queries in queue' },
@@ -2566,8 +2573,9 @@ my %tbl_meta = (
          bps_in         => { src => 'Bytes_received/Uptime_hires',          dec => 1, trans => [qw(shorten)] },
          bps_out        => { src => 'Bytes_sent/Uptime_hires',              dec => 1, trans => [qw(shorten)] },
          when           => { src => 'when' },
+         q_detail       => { src => $exprs{QueryDetail} },
       },
-      visible => [ qw(cxn when load qps slow q_cache_hit key_buffer_hit bps_in bps_out)],
+      visible => [ qw(cxn when load qps slow q_detail q_cache_hit key_buffer_hit bps_in bps_out)],
       filters => [],
       sort_cols => 'when cxn',
       sort_dir => '1',
