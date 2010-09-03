@@ -1479,7 +1479,7 @@ USAGE
 # Convenience so I can copy/paste these in several places...
 # ###########################################################################
 my %exprs = (
-   Host              => q{my $host = host || hostname || ''; ($host) = $host =~ m/^((?:[\d.]+(?=:))|(?:[a-zA-Z]\w+))/; return $host || ''},
+   Host              => q{my $host = host || hostname || ''; ($host) = $host =~ m/^((?:[\d.]+(?=:))|(?:[a-z0-9-]+))/i; return $host || ''},
    Port              => q{my ($p) = host =~ m/:(.*)$/; return $p || 0},
    OldVersions       => q{dulint_to_int(IB_tx_trx_id_counter) - dulint_to_int(IB_tx_purge_done_for)},
    MaxTxnTime        => q/max(map{ $_->{active_secs} } @{ IB_tx_transactions }) || 0/,
