@@ -1796,6 +1796,13 @@ my %builtin_filters = (
       note => 'Removes slave I/O threads from the list',
       tbls => [qw(processlist slave_io_status)],
    },
+   hide_event => {
+      text => <<'      END',
+         return (($set->{state} || '') !~ m/^Daemon/) && (($set->{info} || '') =~ m/\S/);
+      END
+      note => 'Removes idle event threads from the list',
+      tbls => [qw(processlist)],
+   },
    table_is_open => {
       text => <<'      END',
          return $set->{num_times_open} + $set->{is_name_locked};
@@ -2534,7 +2541,7 @@ my %tbl_meta = (
          cnt             => { src => 'id',         minw => 0,  maxw => 0 },
       },
       visible => [ qw(cxn cmd cnt mysql_thread_id state user hostname db time info)],
-      filters => [ qw(hide_self hide_inactive hide_slave_io) ],
+      filters => [ qw(hide_self hide_inactive hide_slave_io hide_event) ],
       sort_cols => '-time cxn hostname mysql_thread_id',
       sort_dir => '1',
       innodb   => '',
@@ -10099,10 +10106,25 @@ persist when you restart innotop.  To create a quick-filter, press the '/' key.
 innotop will prompt you for the column name and filter text.  Again, you can use
 auto-completion on column names.  The filter text can be just the text you want
 to "search for."  For example, to filter the L<"processlist"> table on queries
-that refer to the products table, type '/' and then 'info product'.
+that refer to the products table, type '/' and then 'info product'.  Internally,
+the filter is compiled into a subroutine like this:
+
+ sub filter {
+    my ( $set ) = @_;
+    $set->{info} =~ m/product/;
+ }
 
 The filter text can actually be any Perl regular expression, but of course a
 literal string like 'product' works fine as a regular expression.
+
+What if you want the filter to discard matching rows, rather than showing
+matching rows?  If you're familiar with Perl regular expressions, you might
+guess how to do this.  You have to use a zero-width negative lookahead
+assertion.  If you don't know what that means, don't worry.  Let's filter out
+all rows where the command is Gandalf.  Type the following:
+
+ 1. /
+ 2. cmd ^(?!Gandalf)
 
 Behind the scenes innotop compiles the quick-filter into a specially tagged
 filter that is otherwise like any other filter.  It just isn't saved to the
