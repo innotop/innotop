@@ -41,7 +41,7 @@ $Data::Dumper::Indent    = 0;
 $Data::Dumper::Quotekeys = 0;
 use English qw(-no_match_vars);
 
-use constant MKDEBUG => $ENV{MKDEBUG};
+use constant MKDEBUG => $ENV{MKDEBUG} || 0;
 
 # Defaults are built-in, but you can add/replace items by passing them as
 # hashrefs of {key, desc, copy, dsn}.  The desc and dsn items are optional.
