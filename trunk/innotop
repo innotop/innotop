@@ -362,7 +362,7 @@ use List::Util qw(max);
 # Some common patterns
 my $d  = qr/(\d+)/;                    # Digit
 my $f  = qr/(\d+\.\d+)/;               # Float
-my $t  = qr/(\d+ \d+)/;                # Transaction ID
+my $t  = qr/((?:\d+ \d+)|(?:[A-Fa-f0-9]+))/;                # Transaction ID
 my $i  = qr/((?:\d{1,3}\.){3}\d+)/;    # IP address
 my $n  = qr/([^`\s]+)/;                # MySQL object name
 my $w  = qr/(\w+)/;                    # Words
@@ -496,7 +496,7 @@ sub parse_status_text {
    eval {
       foreach my $section ( keys %innodb_sections ) {
          my $header = $innodb_section_headers{$section};
-         die "Unknown section $section in $fulltext\n"
+         warn "Unknown section $section in $fulltext\n"
             unless $header;
          $innodb_data{'sections'}->{ $header }
             ->{'fulltext'} = $innodb_sections{$section}->[0];
@@ -1067,7 +1067,7 @@ sub parse_tx_section {
    $section->{'transactions'} = [];
 
    # Handle the individual transactions
-   my @transactions = $fulltext =~ m/(---TRANSACTION \d.*?)(?=\n---TRANSACTION|$)/gs;
+   my @transactions = $fulltext =~ m/(---TRANSACTION [0-9A-Fa-f].*?)(?=\n---TRANSACTION|$)/gs;
    foreach my $txn ( @transactions ) {
       my $stuff = parse_tx_text( $txn, $complete, $debug, $full );
       delete $stuff->{'fulltext'} unless $debug;
@@ -8593,7 +8593,7 @@ sub get_innodb_status {
          }
 
          else {
-            next unless ($show_variables{$cxn}->{have_innodb} || 'YES') eq 'NO';
+            next if ($show_variables{$cxn}->{have_innodb} || 'YES') eq 'NO';
             my $stmt = do_stmt($cxn, 'INNODB_STATUS') or next;
             $innodb_status_text = $stmt->fetchrow_hashref()->{status};
          }
