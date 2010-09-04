@@ -3785,6 +3785,7 @@ if ( !$opts{n} ) {
 # keyed on clock tick.
 my %vars;
 my %info_gotten = (); # Which things have been retrieved for the current clock tick.
+my %show_variables;   # Stores SHOW VARIABLES for each cxn so we don't re-fetch.
 
 # Stores info on currently displayed queries: cxn, connection ID, query text.
 my @current_queries;
@@ -8373,10 +8374,17 @@ sub get_status_info {
          $vars->{Uptime_hires} ||= get_uptime($cxn);
          $vars->{cxn} = $cxn;
 
-         # Add SHOW VARIABLES to the hash
-         $sth = do_stmt($cxn, 'SHOW_VARIABLES') or next;
-         $res = $sth->fetchall_arrayref();
-         map { $vars->{$_->[0]} = $_->[1] || 0 } @$res;
+         # Add SHOW VARIABLES to the hash.  If we've gotten this info before, skip and re-use.
+         if ( $show_variables{$cxn} ) {
+            $res = $show_variables{$cxn};
+         }
+         else {
+            $sth = do_stmt($cxn, 'SHOW_VARIABLES') or next;
+            $res = $sth->fetchall_arrayref();
+            $res = {map { $_->[0] => $_->[1] || 0 } @$res};
+            $show_variables{$cxn} = $res;
+         }
+         @{$vars}{keys %$res} = values %$res;
       }
    }
 }
@@ -8583,6 +8591,7 @@ sub get_innodb_status {
          }
 
          else {
+            next unless ($show_variables{$cxn}->{have_innodb} || 'YES') eq 'NO';
             my $stmt = do_stmt($cxn, 'INNODB_STATUS') or next;
             $innodb_status_text = $stmt->fetchrow_hashref()->{status};
          }
