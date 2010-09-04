@@ -1,5 +1,14 @@
 Changelog for innotop:
 
+   Changes:
+   * Don't re-fetch SHOW VARIABLES every iteration; it's too slow on many hosts.
+   * Add a filter to remove EVENT threads in SHOW PROCESSLIST (issue 32).
+
+   Bugs fixed:
+   * Hostname parsing wasn't standards compliant (issue 30).
+   * MKDEBUG didn't work on some Perl versions (issue 22).
+   * Don't try to get InnoDB status if have_innodb != YES (issue 33).
+
 2009-09-06: version 1.7.2
 
    Changes:
