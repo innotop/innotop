@@ -4157,137 +4157,139 @@ my %plugins = (
 # ###########################################################################
 # Run the program {{{1
 # ###########################################################################
-
-# This config variable is only useful for MS Windows because its terminal
-# can't tell how tall it is.
-if ( !$windows ) {
-   delete $config{max_height};
-}
-
-# Try to lower my priority.
-eval { setpriority(0, 0, getpriority(0, 0) + 10); };
-
-# Print stuff to the screen immediately, don't wait for a newline.
-$OUTPUT_AUTOFLUSH = 1;
-
-# Clear the screen and load the configuration.
-$clear_screen_sub->();
-load_config();
-
-# Override config variables with command-line options
-my %cmdline =
-   map  { $_->{c} => $opts{$_->{k}} }
-   grep { exists $_->{c} && exists $opts{$_->{k}} }
-   @opt_spec;
-
-foreach my $name (keys %cmdline) {
-   next if not defined $cmdline{$name};
-   my $val = $cmdline{$name};
-   if ( exists($config{$name}) and (!$config{$name}->{pat} or $val =~ m/$config{$name}->{pat}/ )) {
-      $config{$name}->{val} = $val;
+sub main {
+   # This config variable is only useful for MS Windows because its terminal
+   # can't tell how tall it is.
+   if ( !$windows ) {
+      delete $config{max_height};
    }
-}
-
-post_process_tbl_meta();
-
-# Make sure no changes are written to config file in non-interactive mode.
-if ( $opts{n} ) {
-   $config{readonly}->{val} = 1;
-}
-
-eval {
-
-   # Open the file for InnoDB status
-   if ( @ARGV ) {
-      my $filename = shift @ARGV;
-      open $file, "<", $filename
-         or die "Cannot open '$filename': $OS_ERROR";
-   }
-
-   # In certain modes we might have to collect data for two cycles
-   # before printing anything out, so we need to bump up the count one.
-   if ( $opts{n} && $opts{count} && $config{status_inc}->{val}
-      && $config{mode}->{val} =~ m/[S]/ )
-   {
-      $opts{count}++;
-   }
-
-   while (++$clock) {
-
-      my $mode = $config{mode}->{val} || 'Q';
-      if ( !$modes{$mode} ) {
-         die "Mode '$mode' doesn't exist; try one of these:\n"
-            . join("\n", map { "  $_ $modes{$_}->{hdr}" }  sort keys %modes)
-            . "\n";
+   
+   # Try to lower my priority.
+   eval { setpriority(0, 0, getpriority(0, 0) + 10); };
+   
+   # Print stuff to the screen immediately, don't wait for a newline.
+   $OUTPUT_AUTOFLUSH = 1;
+   
+   # Clear the screen and load the configuration.
+   $clear_screen_sub->();
+   load_config();
+   
+   # Override config variables with command-line options
+   my %cmdline =
+      map  { $_->{c} => $opts{$_->{k}} }
+      grep { exists $_->{c} && exists $opts{$_->{k}} }
+      @opt_spec;
+   
+   foreach my $name (keys %cmdline) {
+      next if not defined $cmdline{$name};
+      my $val = $cmdline{$name};
+      if ( exists($config{$name}) and (!$config{$name}->{pat} or $val =~ m/$config{$name}->{pat}/ )) {
+         $config{$name}->{val} = $val;
       }
-
-      if ( !$opts{n} ) {
-         @last_term_size = @this_term_size;
-         @this_term_size = Term::ReadKey::GetTerminalSize(\*STDOUT);
-         if ( $windows ) {
-            $this_term_size[0]--;
-            $this_term_size[1]
-               = min($this_term_size[1], $config{max_height}->{val});
+   }
+   
+   post_process_tbl_meta();
+   
+   # Make sure no changes are written to config file in non-interactive mode.
+   if ( $opts{n} ) {
+      $config{readonly}->{val} = 1;
+   }
+   
+   eval {
+   
+      # Open the file for InnoDB status
+      if ( @ARGV ) {
+         my $filename = shift @ARGV;
+         open $file, "<", $filename
+            or die "Cannot open '$filename': $OS_ERROR";
+      }
+   
+      # In certain modes we might have to collect data for two cycles
+      # before printing anything out, so we need to bump up the count one.
+      if ( $opts{n} && $opts{count} && $config{status_inc}->{val}
+         && $config{mode}->{val} =~ m/[S]/ )
+      {
+         $opts{count}++;
+      }
+   
+      while (++$clock) {
+   
+         my $mode = $config{mode}->{val} || 'Q';
+         if ( !$modes{$mode} ) {
+            die "Mode '$mode' doesn't exist; try one of these:\n"
+               . join("\n", map { "  $_ $modes{$_}->{hdr}" }  sort keys %modes)
+               . "\n";
          }
-         die("Can't read terminal size") unless @this_term_size;
-      }
-
-      # If there's no connection to a database server, we need to fix that...
-      if ( !%connections ) {
-         print "You have not defined any database connections.\n\n";
-         add_new_dsn();
-      }
-
-      # See whether there are any connections defined for this mode.  If there's only one
-      # connection total, assume the user wants to just use innotop for a single server
-      # and don't ask which server to connect to.  Also, if we're monitoring from a file,
-      # we just use the first connection.
-      if ( !get_connections() ) {
-         if ( $file || 1 == scalar keys %connections ) {
-            $modes{$config{mode}->{val}}->{connections} = [ keys %connections ];
+   
+         if ( !$opts{n} ) {
+            @last_term_size = @this_term_size;
+            @this_term_size = Term::ReadKey::GetTerminalSize(\*STDOUT);
+            if ( $windows ) {
+               $this_term_size[0]--;
+               $this_term_size[1]
+                  = min($this_term_size[1], $config{max_height}->{val});
+            }
+            die("Can't read terminal size") unless @this_term_size;
+         }
+   
+         # If there's no connection to a database server, we need to fix that...
+         if ( !%connections ) {
+            print "You have not defined any database connections.\n\n";
+            add_new_dsn();
+         }
+   
+         # See whether there are any connections defined for this mode.  If there's only one
+         # connection total, assume the user wants to just use innotop for a single server
+         # and don't ask which server to connect to.  Also, if we're monitoring from a file,
+         # we just use the first connection.
+         if ( !get_connections() ) {
+            if ( $file || 1 == scalar keys %connections ) {
+               $modes{$config{mode}->{val}}->{connections} = [ keys %connections ];
+            }
+            else {
+               choose_connections();
+            }
+         }
+   
+         # Term::ReadLine might have re-set $OUTPUT_AUTOFLUSH.
+         $OUTPUT_AUTOFLUSH = 1;
+   
+         # Prune old data
+         my $sets = $config{num_status_sets}->{val};
+         foreach my $store ( values %vars ) {
+            delete @{$store}{ grep { $_ < $clock - $sets } keys %$store };
+         }
+         %info_gotten = ();
+   
+         # Call the subroutine to display this mode.
+         $modes{$mode}->{display_sub}->();
+   
+         # It may be time to quit now.
+         if ( $opts{count} && $clock >= $opts{count} ) {
+            finish();
+         }
+   
+         # Wait for a bit.
+         if ( $opts{n} ) {
+            sleep($config{interval}->{val});
          }
          else {
-            choose_connections();
+            ReadMode('cbreak');
+            $char = ReadKey($config{interval}->{val});
+            ReadMode('normal');
          }
+   
+         # Handle whatever action the key indicates.
+         do_key_action();
+   
       }
-
-      # Term::ReadLine might have re-set $OUTPUT_AUTOFLUSH.
-      $OUTPUT_AUTOFLUSH = 1;
-
-      # Prune old data
-      my $sets = $config{num_status_sets}->{val};
-      foreach my $store ( values %vars ) {
-         delete @{$store}{ grep { $_ < $clock - $sets } keys %$store };
-      }
-      %info_gotten = ();
-
-      # Call the subroutine to display this mode.
-      $modes{$mode}->{display_sub}->();
-
-      # It may be time to quit now.
-      if ( $opts{count} && $clock >= $opts{count} ) {
-         finish();
-      }
-
-      # Wait for a bit.
-      if ( $opts{n} ) {
-         sleep($config{interval}->{val});
-      }
-      else {
-         ReadMode('cbreak');
-         $char = ReadKey($config{interval}->{val});
-         ReadMode('normal');
-      }
-
-      # Handle whatever action the key indicates.
-      do_key_action();
-
+   };
+   if ( $EVAL_ERROR ) {
+      core_dump( $EVAL_ERROR );
    }
-};
-if ( $EVAL_ERROR ) {
-   core_dump( $EVAL_ERROR );
+   finish();
 }
-finish();
+main() unless caller(); # make me testable!
 
 # Subroutines {{{1
 # Mode functions{{{2
@@ -10932,6 +10934,7 @@ displays it.
 The following people and organizations are acknowledged for various reasons.
 Hopefully no one has been forgotten.
 
+Aaron Racine,
 Allen K. Smith,
 Aurimas Mikalauskas,
 Bartosz Fenski,
