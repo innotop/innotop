@@ -8,6 +8,7 @@ Changelog for innotop:
    * Hostname parsing wasn't standards compliant (issue 30).
    * MKDEBUG didn't work on some Perl versions (issue 22).
    * Don't try to get InnoDB status if have_innodb != YES (issue 33).
+   * Status text from the InnoDB plugin wasn't parsed correctly (issue 36).
 
 2009-09-06: version 1.7.2
 
