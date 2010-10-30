@@ -8483,7 +8483,7 @@ sub inc {
       # Numeric variables get subtracted, non-numeric get passed straight through.
       map  {
          $_ =>
-            ( (defined $cur->{$_} && $cur->{$_} =~ m/$num_regex/)
+            ( (defined $cur->{$_} && $cur->{$_} =~ m/$num_regex/ && $pre->{$_} =~ m/$num_regex/ )
             ?  $cur->{$_} - ($pre->{$_} || 0)
             :  $cur->{$_} )
       } keys %{$cur}
