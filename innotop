@@ -5496,7 +5496,7 @@ sub display_help {
 
    # Magic keys
    my @all_magic = map {
-      my $k = $action_for{$_} ? $action_for{$_}->{key} : $_;
+      my $k = $action_for{$_} ? ($action_for{$_}->{key} || $_) : $_;
       sprintf('%4s  %s', $k, $keys{$_});
    } @magic;
    @col1 = splice(@all_magic, 0, ceil(@all_magic/2));
