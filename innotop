@@ -6318,16 +6318,16 @@ sub secs_to_time {
          int($secs / 86_400),
          int(($secs % 86_400) / 3_600),
          int(($secs % 3_600) / 60),
-         $secs % 60)
+         $secs % 60 + ($secs - int($secs)))
       : $fmt eq 'h' ? sprintf(
          "%02d:%02d:$hires",
          int(($secs % 86_400) / 3_600),
          int(($secs % 3_600) / 60),
-         $secs % 60)
+         $secs % 60 + ($secs - int($secs)))
       : sprintf(
          "%02d:$hires",
          int(($secs % 3_600) / 60),
-         $secs % 60);
+         $secs % 60 + ($secs - int($secs)));
 }
 
 # dulint_to_int {{{3
