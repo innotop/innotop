@@ -1781,8 +1781,7 @@ my %filters = ();
 my %builtin_filters = (
    hide_self => {
       text => <<'      END',
-         return ( !$set->{info} || $set->{info} ne 'SHOW FULL PROCESSLIST' )
-             && ( !$set->{query_text}    || $set->{query_text} !~ m/INNODB STATUS$/ );
+         return ( ($set->{info}       || '') !~ m#/\*innotop\*/# );
       END
       note => 'Removes the innotop processes from the list',
       tbls => [qw(innodb_transactions processlist)],
@@ -4106,54 +4105,65 @@ my %stmt_maker_for = (
    INNODB_STATUS => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '5.0.0' )
-             ? 'SHOW ENGINE INNODB STATUS'
-             : 'SHOW INNODB STATUS');
+             ? 'SHOW /*innotop*/ ENGINE INNODB STATUS'
+             : 'SHOW /*innotop*/ INNODB STATUS');
    },
    SHOW_VARIABLES => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare($config{global}->{val} && version_ge( $dbh, '4.0.3' )
-             ? 'SHOW GLOBAL VARIABLES'
-             : 'SHOW VARIABLES');
+             ? 'SHOW /*innotop*/ GLOBAL VARIABLES'
+             : 'SHOW /*innotop*/ VARIABLES');
    },
    SHOW_STATUS => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare($config{global}->{val} && version_ge( $dbh, '5.0.2' )
-             ? 'SHOW GLOBAL STATUS'
-             : 'SHOW STATUS');
+             ? 'SHOW /*innotop*/ GLOBAL STATUS'
+             : 'SHOW /*innotop*/ STATUS');
    },
    KILL_QUERY => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '5.0.0' )
-             ? 'KILL QUERY ?'
-             : 'KILL ?');
+             ? 'KILL /*innotop*/ QUERY ?'
+             : 'KILL /*innotop*/ ?');
    },
    SHOW_MASTER_LOGS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW MASTER LOGS');
+      return $dbh->prepare('SHOW /*innotop*/ MASTER LOGS');
    },
    SHOW_MASTER_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW MASTER STATUS');
+      return $dbh->prepare('SHOW /*innotop*/ MASTER STATUS');
    },
    SHOW_SLAVE_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW SLAVE STATUS');
+      return $dbh->prepare('SHOW /*innotop*/ SLAVE STATUS');
    },
    KILL_CONNECTION => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '5.0.0' )
-             ? 'KILL CONNECTION ?'
-             : 'KILL ?');
+             ? 'KILL /*innotop*/ CONNECTION ?'
+             : 'KILL /*innotop*/ ?');
    },
    OPEN_TABLES => sub {
       my ( $dbh ) = @_;
       return version_ge($dbh, '4.0.0')
-         ? $dbh->prepare('SHOW OPEN TABLES')
+         ? $dbh->prepare('SHOW /*innotop*/ OPEN TABLES')
          : undef;
    },
    PROCESSLIST => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW FULL PROCESSLIST');
+      # In newer versions of the server, use INFORMATION_SCHEMA table if it exists,
+      # and use the TIME_MS column (in Percona Server) if that exists.
+      my $sth;
+      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
+         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.PROCESSLIST LIKE 'TIME_MS'});
+         if ( @$cols ) { # The TIME_MS colum exists
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ ID, USER, HOST, DB, COMMAND, TIME_MS/1000 AS TIME, STATE, }
+               . q{INFO FROM INFORMATION_SCHEMA.PROCESSLIST});
+         }
+      };
+      $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
+      return $sth;
    },
 );
 
@@ -6289,7 +6299,13 @@ sub draw_screen {
 sub secs_to_time {
    my ( $secs, $fmt ) = @_;
    $secs ||= 0;
-   return '00:00' unless $secs;
+
+   # If the inbound value has a decimal point, then format the seconds with milliseconds.
+   my $hires = $secs =~ m/\./ ? '%06.3f' : '%02d';
+
+   if ( !$secs ) {
+      return sprintf("00:$hires", $secs);
+   }
 
    # Decide what format to use, if not given
    $fmt ||= $secs >= 86_400 ? 'd'
@@ -6298,18 +6314,18 @@ sub secs_to_time {
 
    return
       $fmt eq 'd' ? sprintf(
-         "%d+%02d:%02d:%02d",
+         "%d+%02d:%02d:$hires",
          int($secs / 86_400),
          int(($secs % 86_400) / 3_600),
          int(($secs % 3_600) / 60),
          $secs % 60)
       : $fmt eq 'h' ? sprintf(
-         "%02d:%02d:%02d",
+         "%02d:%02d:$hires",
          int(($secs % 86_400) / 3_600),
          int(($secs % 3_600) / 60),
          $secs % 60)
       : sprintf(
-         "%02d:%02d",
+         "%02d:$hires",
          int(($secs % 3_600) / 60),
          $secs % 60);
 }
