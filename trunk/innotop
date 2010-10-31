@@ -486,18 +486,25 @@ sub parse_status_text {
    while ( my ( $start, $name, $text, $end ) = splice(@matches, 0, 4) ) {
       $innodb_sections{$name} = [ $text, $end ? 1 : 0 ];
    }
-   # The Row Operations section is a special case, because instead of ending
-   # with the beginning of another section, it ends with the end of the file.
-   # So this section is complete if the entire file is complete.
-   $innodb_sections{'ROW OPERATIONS'}->[1] ||= $innodb_data{'got_all'};
 
    # Just for sanity's sake, make sure I understand what to do with each
-   # section
+   # section.
    eval {
       foreach my $section ( keys %innodb_sections ) {
          my $header = $innodb_section_headers{$section};
-         warn "Unknown section $section in $fulltext\n"
-            unless $header;
+         if ( !$header && $debug ) {
+            warn "Unknown section $section in $fulltext\n";
+         }
+
+         # The last section in the file is a special case, because instead of
+         # ending with the beginning of another section, it ends with the end of
+         # the file.  So this section is complete if the entire file is
+         # complete.  In different versions of InnoDB, various sections are
+         # last.
+         if ( $innodb_sections{$section}->[0] =~ s/\n---+\nEND OF INNODB.+\n=+$// ) {
+            $innodb_sections{$section}->[1] ||= $innodb_data{'got_all'};
+         }
+
          $innodb_data{'sections'}->{ $header }
             ->{'fulltext'} = $innodb_sections{$section}->[0];
          $innodb_data{'sections'}->{ $header }
@@ -8483,7 +8490,7 @@ sub inc {
       # Numeric variables get subtracted, non-numeric get passed straight through.
       map  {
          $_ =>
-            ( (defined $cur->{$_} && $cur->{$_} =~ m/$num_regex/ && $pre->{$_} =~ m/$num_regex/ )
+            ( (defined $cur->{$_} && $cur->{$_} =~ m/$num_regex/ && ($pre->{$_} || '') =~ m/$num_regex/ )
             ?  $cur->{$_} - ($pre->{$_} || 0)
             :  $cur->{$_} )
       } keys %{$cur}
