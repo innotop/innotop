@@ -4393,11 +4393,9 @@ sub do_key_action {
    if ( defined $char ) {
       my $mode = $config{mode}->{val};
       my $action
-         = defined($modes{$mode}->{action_for}->{$char})
-         ? $modes{$mode}->{action_for}->{$char}->{action}
-         : defined($action_for{$char})
-         ? $action_for{$char}->{action}
-         : sub{};
+         = defined($modes{$mode}->{action_for}->{$char}) ? $modes{$mode}->{action_for}->{$char}->{action}
+         : defined($action_for{$char})                   ? $action_for{$char}->{action}
+         :                                                 sub{};
       $action->();
    }
 }
@@ -5497,7 +5495,10 @@ sub display_help {
    }
 
    # Magic keys
-   my @all_magic = map { sprintf('%4s', $action_for{$_}->{key} || $_) . "  $keys{$_}" } @magic;
+   my @all_magic = map {
+      my $k = $action_for{$_} ? $action_for{$_}->{key} : $_;
+      sprintf('%4s  %s', $k, $keys{$_});
+   } @magic;
    @col1 = splice(@all_magic, 0, ceil(@all_magic/2));
    $max1 = max(map {length($_)} @col1);
    push @display_lines, '', 'Other:';
