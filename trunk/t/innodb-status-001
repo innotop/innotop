@@ -101,6 +101,8 @@ MySQL thread id 1, query id 29 localhost 127.0.0.1 root
 show innodb status
 TABLE LOCK table `test`.`t` trx id 907 lock mode IX
 RECORD LOCKS space id 0 page no 50 n bits 72 index `GEN_CLUST_INDEX` of table `test`.`t` trx id 907 lock_mode X
+---TRANSACTION 3EA5449, not started, process no 11271, OS thread id 1211378000
+MySQL thread id 2541119, query id 76087240 10.32.0.60 vb_admin
 ----------------------------
 END OF INNODB MONITOR OUTPUT
 ============================
