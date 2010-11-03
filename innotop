@@ -358,6 +358,7 @@ use Data::Dumper;
 $Data::Dumper::Sortkeys = 1;
 use English qw(-no_match_vars);
 use List::Util qw(max);
+use POSIX qw(strftime);
 
 # Some common patterns
 my $d  = qr/(\d+)/;                    # Digit
@@ -1429,6 +1430,7 @@ my @opt_spec = (
    { s => 'host|h=s',   d => 'Connect to host' },
    { s => 'port|P=i',   d => 'Port number to use for connection' },
    { s => 'socket|S=s', d => 'MySQL socket to use for connection' },
+   { s => 'timestamp|t+', d => 'Print timestamp in -n mode (1: per iter; 2: per line)' },
 );
 
 # This is the container for the command-line options' values to be stored in
@@ -4090,6 +4092,11 @@ my %config = (
       note => 'Which set of variables to display in S (Variables & Status) mode',
       conf => [ qw(S) ],
    },
+   timeformat => {
+      val  => '%Y-%m-%dT%H:%M:%S',
+      pat  => qr//,
+      note => 'The strftime() timestamp format to write in -n mode',
+   }
 );
 
 # ###########################################################################
@@ -6461,12 +6468,23 @@ sub draw_screen {
       if $prefs->{clear} || !$modes{$config{mode}->{val}}->{no_clear_screen};
    if ( $opts{n} || $prefs->{raw} ) {
       my $num_lines = 0;
+      my $ts = $opts{t} ? POSIX::strftime($config{timeformat}->{val}, localtime) : '';
+      if ( $opts{t} ) {
+         if ( $opts{t} == 1 ) {
+            print "\n$ts\n\n";
+            $ts = ""; # Prevent it from being written on every line.
+            $num_lines++;
+         }
+         else {
+            $ts .= " ";
+         }
+      }
       print join("\n",
          map {
             $num_lines++;
             ref $_
-               ? colored($_->[0], $_->[1])
-               : $_;
+               ? colored($ts . $_->[0], $_->[1])
+               : $ts . $_;
          }
          grep { !$opts{n} || $_ } # Suppress empty lines
          @$display_lines);
@@ -9119,6 +9137,12 @@ Port to use for connection.
 
 Don't read the central configuration file.
 
+=item --timestamp
+
+In -n mode, write a timestamp either before every screenful of output, or if
+the option is given twice, at the start of every line.  The format is controlled
+by the timeformat config variable.
+
 =item --user
 
 User to use for connection.
@@ -9938,6 +9962,11 @@ Incremental values are calculated as an offset from the last value innotop saw
 for that variable.  This is a global setting, but will probably become
 mode-specific at some point.  Right now it is honored a bit inconsistently; some
 modes don't pay attention to it.
+
+=item timeformat
+
+The C-style strftime()-compatible format for the timestamp line to be printed
+in -n mode when -t is set.
 
 =back
 
