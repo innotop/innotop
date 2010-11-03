@@ -3100,10 +3100,10 @@ my %modes = (
       tables            => [qw(open_tables)],
       visible_tables    => [qw(open_tables)],
    },
-   P => {
-      hdr        => 'Percona Enhancements',
+   U => {
+      hdr        => 'User Statistics',
       cust       => {},
-      note       => 'Enables Percona enhancements such as table statistics',
+      note       => 'Displays Percona/MariaDB enhancements such as table statistics',
       action_for => {
          i => {
             action => sub { set_visible_table('index_statistics') },
@@ -3396,10 +3396,6 @@ my %action_for = (
       action => sub { switch_mode('O') },
       label  => '',
    },
-   P => {
-      action => sub { switch_mode('P') },
-      label  => '',
-   },
    Q => {
       action => sub { switch_mode('Q') },
       label  => '',
@@ -3414,6 +3410,10 @@ my %action_for = (
    },
    T => {
       action => sub { switch_mode('T') },
+      label  => '',
+   },
+   U => {
+      action => sub { switch_mode('U') },
       label  => '',
    },
    d => {
@@ -9340,21 +9340,21 @@ tables might be locked implicitly.
 
 This mode displays the L<"open_tables"> mode by default.
 
-=item P: Percona Enhancements
+=item U: User Statistics
 
 This mode displays data that's available in Percona's enhanced version of MySQL
 (also known as Percona Server with XtraDB).  Specifically, it makes it easy to
 enable and disable the so-called "user statistics."  This feature gathers stats
 on clients, threads, users, tables, and indexes and makes them available as
 INFORMATION_SCHEMA tables.  These are invaluable for understanding what your
-server is doing.
+server is doing.  They are also available in MariaDB.
 
 The statistics supported so far are only from the TABLE_STATISTICS and
 INDEX_STATISTICS tables added by Percona.  There are three views: one of table stats,
 one of index stats (which can be aggregated with the = key), and one of both.
 
 The server doesn't gather these stats by default.  You have to set the variable
-userstat_running to turn it on.  You can do this easily with innotop from P mode,
+userstat_running to turn it on.  You can do this easily with innotop from U mode,
 with the 's' key.
 
 =item Q: Query List
@@ -9505,7 +9505,7 @@ connection names of that master's slaves (there is no way for innotop to
 determine this reliably itself).  innotop will find the minimum binlog in use by
 these slave connections and suggest it as the argument to PURGE MASTER LOGS.
 
-in L<"P: Percona Enhancements"> mode, you can use the 's' key to start and stop
+in L<"U: User Statistics"> mode, you can use the 's' key to start and stop
 the collection of the statistics data for TABLE_STATISTICS and similar.
 
 =head1 SERVER CONNECTIONS
@@ -10239,7 +10239,7 @@ Displays data from the INDEX_STATISTICS table in Percona-enhanced servers.
 
 Displays data from the INDEX_STATISTICS and TABLE_STATISTICS tables in
 Percona-enhanced servers.  It joins the two together, grouped by the database
-and table name.  It is the default view in L<"P: Percona Enhancements"> mode,
+and table name.  It is the default view in L<"U: User Statistics"> mode,
 and makes it easy to see what tables are hot, how many rows are read from indexes,
 how many changes are made, and how many changes are made to indexes.
 

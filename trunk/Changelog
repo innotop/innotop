@@ -4,7 +4,7 @@ Changelog for innotop:
    * Don't re-fetch SHOW VARIABLES every iteration; it's too slow on many hosts.
    * Add a filter to remove EVENT threads in SHOW PROCESSLIST (issue 32).
    * Add a timestamp to output in -n mode, when -t is specified (issue 37).
-   * Add a new P mode, for Percona INDEX/TABLE_STATISTICS enhancements (issue 39).
+   * Add a new U mode, for Percona/MariaDB USER_STATISTICS enhancements (issue 39).
    * Add support for millisecond query time in Percona Server (issue 39).
    * Display a summary of queries executed in Query List mode (issue 26).
 
