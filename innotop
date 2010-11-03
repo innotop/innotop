@@ -1695,6 +1695,10 @@ my %columns = (
    request_type                => { hdr => 'Type',                num => 0, label => 'Type of lock the thread waits for' },
    reservation_count           => { hdr => 'ResCnt',              num => 1, label => 'Reservation Count' },
    row_locks                   => { hdr => 'RLocks',              num => 1, label => 'Number of row locks' },
+   rows_changed                => { hdr => 'Changed',             num => 1, label => 'Number of rows changed' },
+   rows_changed_x_indexes      => { hdr => 'Chg X Idx',           num => 1, label => 'Number of rows changed X indexes' },
+   rows_read                   => { hdr => 'Reads',               num => 1, label => 'Number of rows read' },
+   rows_read_from_indexes      => { hdr => 'Reads Via Idx',       num => 1, label => 'Number of rows read from indexes' },
    rw_excl_os_waits            => { hdr => 'RW Waits',            num => 1, label => 'R/W Excl. OS Waits' },
    rw_excl_spins               => { hdr => 'RW Spins',            num => 1, label => 'R/W Excl. Spins' },
    rw_shared_os_waits          => { hdr => 'Sh Waits',            num => 1, label => 'R/W Shared OS Waits' },
@@ -2305,6 +2309,49 @@ my %tbl_meta = (
       group_by => [],
       aggregate => 0,
    },
+   index_statistics => {
+      capt => 'Data from INDEX_STATISTICS',
+      cust => {},
+      cols => {
+         cxn                    => { src => 'cxn', minw => 6, maxw => 10 },
+         db                     => { src => 'table_schema' },
+         tbl                    => { src => 'table_name' },
+         index                  => { src => 'index_name' },
+         rows_read              => { src => 'rows_read', agg => 'sum' },
+      },
+      visible => [ qw(cxn db tbl index rows_read) ],
+      filters => [ ],
+      sort_cols => 'rows_read',
+      sort_dir => '-1',
+      innodb   => '',
+      colors   => [],
+      hide_caption => 1,
+      group_by => [qw(cxn db tbl)],
+      aggregate => 0,
+   },
+   index_table_statistics => {
+      capt => 'Data from {TABLE,INDEX}_STATISTICS',
+      cust => {},
+      cols => {
+         cxn                    => { src => 'cxn', minw => 6, maxw => 10 },
+         db                     => { src => 'table_schema' },
+         tbl                    => { src => 'table_name' },
+         index                  => { src => 'index_name' },
+         rows_read              => { src => 'rows_read' },
+         rows_read_from_indexes => { src => 'rows_read_from_indexes' },
+         rows_changed           => { src => 'rows_changed' },
+         rows_changed_x_indexes => { src => 'rows_changed_x_indexes' },
+      },
+      visible => [ qw(cxn db tbl rows_read rows_read_from_indexes rows_changed rows_changed_x_indexes) ],
+      filters => [ ],
+      sort_cols => 'rows_read',
+      sort_dir => '-1',
+      innodb   => '',
+      colors   => [],
+      hide_caption => 1,
+      group_by => [qw(cxn db tbl)],
+      aggregate => 0,
+   },
    insert_buffers => {
       capt => 'Insert Buffers',
       cust => {},
@@ -2742,6 +2789,27 @@ my %tbl_meta = (
       group_by => [],
       aggregate => 0,
    },
+   table_statistics => {
+      capt => 'Data from TABLE_STATISTICS',
+      cust => {},
+      cols => {
+         cxn                    => { src => 'cxn', minw => 6, maxw => 10 },
+         db                     => { src => 'table_schema' },
+         tbl                    => { src => 'table_name' },
+         rows_read              => { src => 'rows_read' },
+         rows_changed           => { src => 'rows_changed' },
+         rows_changed_x_indexes => { src => 'rows_changed_x_indexes' },
+      },
+      visible => [ qw(cxn db tbl rows_read rows_changed rows_changed_x_indexes) ],
+      filters => [ ],
+      sort_cols => 'rows_read',
+      sort_dir => '-1',
+      innodb   => '',
+      colors   => [],
+      hide_caption => 1,
+      group_by => [],
+      aggregate => 0,
+   },
    t_header => {
       capt => 'T-Mode Header',
       cust => {},
@@ -3029,6 +3097,35 @@ my %modes = (
       tables            => [qw(open_tables)],
       visible_tables    => [qw(open_tables)],
    },
+   P => {
+      hdr        => 'Percona Enhancements',
+      cust       => {},
+      note       => 'Enables Percona enhancements such as table statistics',
+      action_for => {
+         i => {
+            action => sub { set_visible_table('index_statistics') },
+            label  => 'Switch to INDEX_STATISTICS',
+         },
+         s => {
+            action => sub { $clear_screen_sub->(); send_cmd_to_servers('SET @@global.userstat_running := 1 - @@global.userstat_running', 1, undef, []); },
+            label => "Change the display's sort column",
+         },
+         t => {
+            action => sub { set_visible_table('table_statistics') },
+            label  => 'Switch to TABLE_STATISTICS',
+         },
+         x => {
+            action => sub { set_visible_table('index_table_statistics') },
+            label  => 'Switch to {INDEX,TABLE}_STATISTICS',
+         },
+      },
+      display_sub       => \&display_P,
+      connections       => [],
+      server_group      => '',
+      one_connection    => 0,
+      tables            => [qw(table_statistics index_statistics index_table_statistics)],
+      visible_tables    => [qw(index_table_statistics)],
+   },
    Q => {
       hdr        => 'Query List',
       cust       => {},
@@ -3294,6 +3391,10 @@ my %action_for = (
    },
    O => {
       action => sub { switch_mode('O') },
+      label  => '',
+   },
+   P => {
+      action => sub { switch_mode('P') },
       label  => '',
    },
    Q => {
@@ -4102,6 +4203,37 @@ my %pluggable_vars = (
 # given DB connection.  Returns a $sth.
 # ###########################################################################
 my %stmt_maker_for = (
+   INDEX_STATISTICS => sub {
+      my ( $dbh ) = @_;
+      # Detect whether there's a Percona Server with INFORMATION_SCHEMA.INDEX_STATISTICS
+      # and if not, just select nothing.
+      my $sth;
+      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
+         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.INDEX_STATISTICS});
+         if ( @$cols ) {
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ * FROM INFORMATION_SCHEMA.INDEX_STATISTICS});
+         }
+      };
+      $sth ||= $dbh->prepare('SELECT /*innotop*/ "" FROM DUAL WHERE 1 = 0');
+      return $sth;
+   },
+   INDEX_TABLE_STATISTICS => sub {
+      my ( $dbh ) = @_;
+      # Detect whether there's a Percona Server with INFORMATION_SCHEMA.INDEX_STATISTICS
+      # and if not, just select nothing.
+      my $sth;
+      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
+         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.INDEX_STATISTICS});
+         if ( @$cols ) {
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ L.TABLE_SCHEMA, L.TABLE_NAME, L.ROWS_READ, }
+               . q{SUM(R.ROWS_READ) AS ROWS_READ_FROM_INDEXES, L.ROWS_CHANGED, L.ROWS_CHANGED_X_INDEXES }
+               . q{FROM INFORMATION_SCHEMA.TABLE_STATISTICS AS L LEFT JOIN INFORMATION_SCHEMA.INDEX_STATISTICS AS R }
+               . q{USING(TABLE_SCHEMA, TABLE_NAME) GROUP BY L.TABLE_SCHEMA, L.TABLE_NAME});
+         }
+      };
+      $sth ||= $dbh->prepare('SELECT /*innotop*/ "" FROM DUAL WHERE 1 = 0');
+      return $sth;
+   },
    INNODB_STATUS => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '5.0.0' )
@@ -4163,6 +4295,20 @@ my %stmt_maker_for = (
          }
       };
       $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
+      return $sth;
+   },
+   TABLE_STATISTICS => sub {
+      my ( $dbh ) = @_;
+      # Detect whether there's a Percona Server with INFORMATION_SCHEMA.TABLE_STATISTICS
+      # and if not, just select nothing.
+      my $sth;
+      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
+         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.TABLE_STATISTICS});
+         if ( @$cols ) {
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ * FROM INFORMATION_SCHEMA.TABLE_STATISTICS});
+         }
+      };
+      $sth ||= $dbh->prepare('SELECT /*innotop*/ "" FROM DUAL WHERE 1 = 0');
       return $sth;
    },
 );
@@ -4992,6 +5138,49 @@ sub display_O {
    my @open_tables   = get_open_tables(@cxns);
    my @tables = map { extract_values($_, $_, $_, 'open_tables') } @open_tables;
    push @display_lines, set_to_tbl(\@tables, 'open_tables'), get_cxn_errors(@cxns);
+   draw_screen(\@display_lines);
+}
+
+# display_P {{{3
+sub display_P {
+   my @display_lines;
+
+   my @table_statistics;
+   my @index_statistics;
+   my @index_table_statistics;
+   my %rows_for = (
+      table_statistics => \@table_statistics,
+      index_statistics => \@index_statistics,
+      index_table_statistics => \@index_table_statistics,
+   );
+
+   my @visible = $opts{n} ? 'index_table_statistics' : get_visible_tables();
+   my %wanted  = map { $_ => 1 } @visible;
+
+   # Get the data
+   my @cxns = get_connections();
+
+   if ( $wanted{table_statistics} ) {
+      my @rows = get_table_statistics(@cxns);
+      push @table_statistics, map { extract_values($_, $_, $_, 'table_statistics') } @rows;
+   }
+   elsif ( $wanted{index_statistics} ) {
+      my @rows = get_index_statistics(@cxns);
+      push @index_statistics, map { extract_values($_, $_, $_, 'index_statistics') } @rows;
+   }
+   elsif ( $wanted{index_table_statistics} ) {
+      my @rows = get_index_table_statistics(@cxns);
+      push @index_table_statistics, map { extract_values($_, $_, $_, 'index_table_statistics') } @rows;
+   }
+
+   my $first_table = 0;
+   foreach my $tbl ( @visible ) {
+      next unless $wanted{$tbl};
+      push @display_lines, '', set_to_tbl($rows_for{$tbl}, $tbl);
+      push @display_lines, get_cxn_errors(@cxns)
+         if ( $config{debug}->{val} || !$first_table++ );
+   }
+
    draw_screen(\@display_lines);
 }
 
@@ -8058,6 +8247,17 @@ sub choose_mode_tables {
    $modes{$mode}->{cust}->{visible_tables} = 1;
 }
 
+# set_visible_table {{{3
+sub set_visible_table {
+   my ( $tbl ) = @_;
+   my $mode = $config{mode}->{val};
+   my @tbls = grep { $_ eq $tbl } @{$modes{$mode}->{tables}};
+   if ( @tbls == 1 ) {
+      $modes{$mode}->{visible_tables} = [ $tbl ];
+      $modes{$mode}->{cust}->{visible_tables} = 1;
+   }
+}
+
 # choose_visible_table {{{3
 sub choose_visible_table {
    my ( $grep_cond ) = @_;
@@ -8565,6 +8765,42 @@ sub get_open_tables {
    my @result;
    foreach my $cxn ( @cxns ) {
       my $stmt = do_stmt($cxn, 'OPEN_TABLES') or next;
+      my $arr  = $stmt->fetchall_arrayref({});
+      push @result, map { $_->{cxn} = $cxn; $_ } @$arr;
+   }
+   return @result;
+}
+
+# get_index_statistics {{{3
+sub get_index_statistics {
+   my @cxns = @_;
+   my @result;
+   foreach my $cxn ( @cxns ) {
+      my $stmt = do_stmt($cxn, 'INDEX_STATISTICS') or next;
+      my $arr  = $stmt->fetchall_arrayref({});
+      push @result, map { $_->{cxn} = $cxn; $_ } @$arr;
+   }
+   return @result;
+}
+
+# get_index_table_statistics {{{3
+sub get_index_table_statistics {
+   my @cxns = @_;
+   my @result;
+   foreach my $cxn ( @cxns ) {
+      my $stmt = do_stmt($cxn, 'INDEX_TABLE_STATISTICS') or next;
+      my $arr  = $stmt->fetchall_arrayref({});
+      push @result, map { $_->{cxn} = $cxn; $_ } @$arr;
+   }
+   return @result;
+}
+
+# get_table_statistics {{{3
+sub get_table_statistics {
+   my @cxns = @_;
+   my @result;
+   foreach my $cxn ( @cxns ) {
+      my $stmt = do_stmt($cxn, 'TABLE_STATISTICS') or next;
       my $arr  = $stmt->fetchall_arrayref({});
       push @result, map { $_->{cxn} = $cxn; $_ } @$arr;
    }
