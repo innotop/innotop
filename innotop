@@ -1403,6 +1403,7 @@ my %col_props = (
    trans   => [],
    agg     => 'first',  # Aggregate function
    aggonly => 0,        # Whether to show only when tbl_meta->{aggregate} is true
+   agghide => 0,        # Whether NOT to show when tbl_meta->{aggregate} is true
 );
 
 # Actual DBI connections to MySQL servers.
@@ -1561,7 +1562,7 @@ my %columns = (
    host_and_domain             => { hdr => 'Host',                num => 0, label => 'Hostname/IP and domain' },
    host_and_port               => { hdr => 'Host/IP',             num => 0, label => 'Hostname or IP address, and port number', },
    hostname                    => { hdr => 'Host',                num => 0, label => 'Hostname' },
-   index                       => { hdr => 'Index',               num => 0, label => 'The index involved' },
+   index                       => { hdr => 'Index',               num => 0, label => 'The index involved', agghide => 1 },
    index_ref                   => { hdr => 'Index Ref',           num => 0, label => 'Index referenced' },
    info                        => { hdr => 'Query',               num => 0, label => 'Info or the current query', },
    insert_intention            => { hdr => 'Ins Intent',          num => 1, label => 'Whether the thread was trying to insert' },
@@ -3680,6 +3681,7 @@ my %tbl_editor_action = (
             dec   => 0,
             agg   => 0,
             aggonly => 0,
+            agghide => 0,
          };
 
          $tbl_meta{$tbl}->{visible} = [ unique(@{$tbl_meta{$tbl}->{visible}}, $col) ];
@@ -6191,10 +6193,11 @@ sub set_to_tbl {
       $fmt_meta = { map  { $_ => $meta->{cols}->{$_}                      } @$fmt_cols };
 
       # If the table is aggregated, re-order the group_by columns to the left of
-      # the display.
+      # the display, and suppress 'agghide' columns.
       if ( $aggregated ) {
          my %is_group = map { $_ => 1 } @{$meta->{group_by}};
          $fmt_cols = [ @{$meta->{group_by}}, grep { !$is_group{$_} } @$fmt_cols ];
+         $fmt_cols = [ grep { !$meta->{cols}->{$_}->{agghide} } @$fmt_cols ];
       }
    }
 
@@ -9313,6 +9316,23 @@ tables might be locked implicitly.
 
 This mode displays the L<"open_tables"> mode by default.
 
+=item P: Percona Enhancements
+
+This mode displays data that's available in Percona's enhanced version of MySQL
+(also known as Percona Server with XtraDB).  Specifically, it makes it easy to
+enable and disable the so-called "user statistics."  This feature gathers stats
+on clients, threads, users, tables, and indexes and makes them available as
+INFORMATION_SCHEMA tables.  These are invaluable for understanding what your
+server is doing.
+
+The statistics supported so far are only from the TABLE_STATISTICS and
+INDEX_STATISTICS tables added by Percona.  There are three views: one of table stats,
+one of index stats (which can be aggregated with the = key), and one of both.
+
+The server doesn't gather these stats by default.  You have to set the variable
+userstat_running to turn it on.  You can do this easily with innotop from P mode,
+with the 's' key.
+
 =item Q: Query List
 
 This mode displays the output from SHOW FULL PROCESSLIST, much like B<mytop>'s
@@ -9460,6 +9480,9 @@ will prompt you for a master to run the command on, then prompt you for the
 connection names of that master's slaves (there is no way for innotop to
 determine this reliably itself).  innotop will find the minimum binlog in use by
 these slave connections and suggest it as the argument to PURGE MASTER LOGS.
+
+in L<"P: Percona Enhancements"> mode, you can use the 's' key to start and stop
+the collection of the statistics data for TABLE_STATISTICS and similar.
 
 =head1 SERVER CONNECTIONS
 
@@ -10179,6 +10202,18 @@ L<"STATUS_VARIABLES">.
 Displays various data about InnoDB's last foreign key error.  Data source:
 L<"STATUS_VARIABLES">.
 
+=item index_statistics
+
+Displays data from the INDEX_STATISTICS table in Percona-enhanced servers.
+
+=item index_table_statistics
+
+Displays data from the INDEX_STATISTICS and TABLE_STATISTICS tables in
+Percona-enhanced servers.  It joins the two together, grouped by the database
+and table name.  It is the default view in L<"P: Percona Enhancements"> mode,
+and makes it easy to see what tables are hot, how many rows are read from indexes,
+how many changes are made, and how many changes are made to indexes.
+
 =item innodb_locks
 
 Displays InnoDB locks.  Data source: L<"INNODB_LOCKS">.
@@ -10248,6 +10283,10 @@ L<"STATUS_VARIABLES">.
 =item slave_sql_status
 
 Displays data about the slave SQL thread.  Data source: L<"STATUS_VARIABLES">.
+
+=item table_statistics
+
+Displays data from the TABLE_STATISTICS table in Percona-enhanced servers.
 
 =item t_header
 
@@ -10325,6 +10364,10 @@ column's aggonly is set true, the column will appear when you toggle grouping on
 the table.  Several columns are set this way, such as the count column on
 L<"processlist"> and L<"innodb_transactions">, so you don't see a count when the
 grouping isn't enabled, but you do when it is.
+
+=item *
+
+agghide: the reverse of aggonly.  The column is hidden when grouping is enabled.
 
 =back
 
@@ -10494,8 +10537,8 @@ That's actually quite a worrisome picture.  You've got a lot of idle connections
 (Sleep), and some connections executing queries (Query and Sending Data).
 That's okay, but you also have a lot in Statistics status, collectively spending
 over a minute.  That means the query optimizer is having a really hard time
-optimizing your statements.  Something is wrong; it should normally take
-milliseconds to optimize queries.  You might not have seen this pattern if you
+generating execution plans for your statements.  Something is wrong; it should
+normally take milliseconds to plan queries.  You might not have seen this pattern if you
 didn't look at your connections in aggregate.  (This is a made-up example, but
 it can happen in real life).
 
@@ -11036,6 +11079,7 @@ executes "SHOW ENGINE INNODB STATUS", while on earlier versions it executes
 
  Statement           SQL executed
  =================== ===============================
+ INDEX_STATISTICS    SELECT * FROM INFORMATION_SCHEMA.INDEX_STATISTICS
  INNODB_STATUS       SHOW [ENGINE] INNODB STATUS
  KILL_CONNECTION     KILL
  KILL_QUERY          KILL QUERY
@@ -11046,6 +11090,7 @@ executes "SHOW ENGINE INNODB STATUS", while on earlier versions it executes
  SHOW_SLAVE_STATUS   SHOW SLAVE STATUS
  SHOW_STATUS         SHOW [GLOBAL] STATUS
  SHOW_VARIABLES      SHOW [GLOBAL] VARIABLES
+ TABLE_STATISTICS    SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS
 
 =head1 DATA SOURCES
 
