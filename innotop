@@ -7733,7 +7733,8 @@ sub load_config_tbl_meta {
 
       foreach my $prop ( keys %col_props ) {
          if ( !defined($parts{$prop}) ) {
-            die "Undefined property $prop for column $col in table $tbl";
+            # Make it default to whatever's in col_props.
+            $parts{$prop} = $col_props{$prop};
          }
 
          # Un-escape escaping
