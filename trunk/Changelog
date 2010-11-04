@@ -9,6 +9,7 @@ Changelog for innotop:
    * Display a summary of queries executed in Query List mode (issue 26).
 
    Bugs fixed:
+   * Made config-file reading more robust (issue 41).
    * Hostname parsing wasn't standards compliant (issue 30).
    * MKDEBUG didn't work on some Perl versions (issue 22).
    * Don't try to get InnoDB status if have_innodb != YES (issue 33).
