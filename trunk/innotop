@@ -10878,9 +10878,9 @@ or modify its existing functionality, and add new functionality.  innotop's
 plugin functionality is event-based: plugins register themselves to be called
 when events happen.  They then have a chance to influence the event.
 
-An innotop plugin is a Perl module placed in innotop's L<"plugin_dir">
+An innotop plugin is a Perl module (.pm) file placed in innotop's L<"plugin_dir">
 directory.  On UNIX systems, you can place a symbolic link to the module instead
-of putting the actual file there.  innotop automatically discovers the file.  If
+of putting the actual file there.  innotop automatically discovers files named C<*.pm>.  If
 there is a corresponding entry in the L<"plugins"> configuration file section,
 innotop loads and activates the plugin.
 
@@ -10893,7 +10893,7 @@ file and determine the package name and description.
 innotop inspects the plugin module's source to determine the Perl package name.
 It looks for a line of the form "package Foo;" and if found, considers the
 plugin's package name to be Foo.  Of course the package name can be a valid Perl
-package name, with double semicolons and so on.
+package name such as Foo::Bar, with double colons (::) and so on.
 
 It also looks for a description in the source code, to make the plugin editor
 more human-friendly.  The description is a comment line of the form "#
@@ -11035,7 +11035,9 @@ $lines is an arrayref of strings.
 
 The easiest way to explain the plugin functionality is probably with a simple
 example.  The following module adds a column to the beginning of every table and
-sets its value to 1.
+sets its value to 1.  (If you copy and paste this example code, be sure to remove
+the first space from each line; lines such as '# description' must not start with
+whitespace).
 
  use strict;
  use warnings FATAL => 'all';
