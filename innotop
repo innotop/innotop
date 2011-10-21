@@ -21,7 +21,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.8.0';
+our $VERSION = '1.8.1';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -1409,6 +1409,10 @@ my %col_props = (
 
 # Actual DBI connections to MySQL servers.
 my %dbhs;
+
+# True if using TIME_MS column from INFORMATION_SCHEMA.PROCEESSLIST.
+my $using_time_ms = 0;
+my $prev_full_processlist;
 
 # Command-line parameters {{{2
 # ###########################################################################
@@ -4299,6 +4303,7 @@ my %stmt_maker_for = (
       eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
          my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.PROCESSLIST LIKE 'TIME_MS'});
          if ( @$cols ) { # The TIME_MS colum exists
+            $using_time_ms = 1;
             $sth = $dbh->prepare(q{SELECT /*innotop*/ ID, USER, HOST, DB, COMMAND, TIME_MS/1000 AS TIME, STATE, }
                . q{INFO FROM INFORMATION_SCHEMA.PROCESSLIST});
          }
@@ -5210,6 +5215,24 @@ sub display_Q {
    # Get the data
    my @cxns             = get_connections();
    my @full_processlist = get_full_processlist(@cxns);
+
+   # Correct for Percona Server TIME_MS bug in PROCESSLIST table.
+   if ( $using_time_ms && $prev_full_processlist ) {
+      my $interval = $config{interval}->{val};
+
+      foreach my $proc ( @full_processlist ) {
+         # Find the current proc in the prev processlist.
+         my $prev_proc = grep {
+            $prev_full_processlist->[$_]->{id} = $proc->{id}
+         } @$prev_full_processlist;
+         next unless $prev_proc;
+
+         if ( ($proc->{time} || 0) - ($prev_proc->{time} || 0) > $interval ) {
+            $proc->{time} = $prev_proc->{time} + $interval;
+         }
+      }
+   }
+   $prev_full_processlist = \@full_processlist;
 
    # Create header
    if ( $wanted{q_header} ) {
