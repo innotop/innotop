@@ -1412,7 +1412,7 @@ my %dbhs;
 
 # True if using TIME_MS column from INFORMATION_SCHEMA.PROCEESSLIST.
 my $using_time_ms = 0;
-my $prev_full_processlist;
+my $prev_proc;
 
 # Command-line parameters {{{2
 # ###########################################################################
@@ -5217,22 +5217,33 @@ sub display_Q {
    my @full_processlist = get_full_processlist(@cxns);
 
    # Correct for Percona Server TIME_MS bug in PROCESSLIST table.
-   if ( $using_time_ms && $prev_full_processlist ) {
-      my $interval = $config{interval}->{val};
+   if ( $using_time_ms ) {
+      my $interval  = $config{interval}->{val};
+      my $threshold = $interval + ($interval / 2);
 
+      my %new_prev_proc;
       foreach my $proc ( @full_processlist ) {
-         # Find the current proc in the prev processlist.
-         my $prev_proc = grep {
-            $prev_full_processlist->[$_]->{id} = $proc->{id}
-         } @$prev_full_processlist;
-         next unless $prev_proc;
-
-         if ( ($proc->{time} || 0) - ($prev_proc->{time} || 0) > $interval ) {
-            $proc->{time} = $prev_proc->{time} + $interval;
+         next unless $proc->{time};
+         if ( !exists $prev_proc->{$proc->{id}} ) {
+            # New proc.
+            $new_prev_proc{$proc->{id}} = $proc->{time}; # new proc
+         }
+         elsif ( $proc->{time} > $prev_proc->{$proc->{id}} ) {
+            # Same proc, time has increased so it's probably the same Command.
+            $new_prev_proc{$proc->{id}}
+               = $proc->{time} - $prev_proc->{$proc->{id}} > $threshold
+               ? $prev_proc->{$proc->{id}} + $interval
+               : $proc->{time};
+         }
+         else {
+            # Same proc, new Command (new time is less than old time).
+            # E.g., this happens when a proc goes from Sleep to Executing.
+            $new_prev_proc{$proc->{id}} = $proc->{time};
          }
       }
+
+      $prev_proc = \%new_prev_proc;
    }
-   $prev_full_processlist = \@full_processlist;
 
    # Create header
    if ( $wanted{q_header} ) {
