@@ -5226,7 +5226,10 @@ sub display_Q {
          next unless $proc->{time};
          if ( !exists $prev_proc->{$proc->{id}} ) {
             # New proc.
-            $new_prev_proc{$proc->{id}} = $proc->{time}; # new proc
+            $new_prev_proc{$proc->{id}}
+               = $proc->{time} > 31_556_926 # one year
+               ? 0
+               : $proc->{time};
          }
          elsif ( $proc->{time} > $prev_proc->{$proc->{id}} ) {
             # Same proc, time has increased so it's probably the same Command.
