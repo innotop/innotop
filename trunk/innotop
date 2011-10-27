@@ -5226,17 +5226,21 @@ sub display_Q {
          next unless $proc->{time};
          if ( !exists $prev_proc->{$proc->{id}} ) {
             # New proc.
-            $new_prev_proc{$proc->{id}}
+            my $adjusted_time 
                = $proc->{time} > 31_556_926 # one year
                ? 0
                : $proc->{time};
+            $proc->{time}               = $adjusted_time;
+            $new_prev_proc{$proc->{id}} = $adjusted_time;
          }
          elsif ( $proc->{time} > $prev_proc->{$proc->{id}} ) {
             # Same proc, time has increased so it's probably the same Command.
-            $new_prev_proc{$proc->{id}}
+            my $adjusted_time
                = $proc->{time} - $prev_proc->{$proc->{id}} > $threshold
                ? $prev_proc->{$proc->{id}} + $interval
                : $proc->{time};
+            $proc->{time}               = $adjusted_time;
+            $new_prev_proc{$proc->{id}} = $adjusted_time;
          }
          else {
             # Same proc, new Command (new time is less than old time).
@@ -5244,7 +5248,7 @@ sub display_Q {
             $new_prev_proc{$proc->{id}} = $proc->{time};
          }
       }
-
+      
       $prev_proc = \%new_prev_proc;
    }
 
