@@ -41,7 +41,7 @@ $Data::Dumper::Indent    = 0;
 $Data::Dumper::Quotekeys = 0;
 use English qw(-no_match_vars);
 
-use constant MKDEBUG => $ENV{MKDEBUG} || 0;
+use constant MKDEBUG  => $ENV{MKDEBUG} || 0;
 
 # Defaults are built-in, but you can add/replace items by passing them as
 # hashrefs of {key, desc, copy, dsn}.  The desc and dsn items are optional.
@@ -1412,7 +1412,6 @@ my %dbhs;
 
 # True if using TIME_MS column from INFORMATION_SCHEMA.PROCEESSLIST.
 my $using_time_ms = 0;
-my $prev_proc;
 
 # Command-line parameters {{{2
 # ###########################################################################
@@ -5218,38 +5217,10 @@ sub display_Q {
 
    # Correct for Percona Server TIME_MS bug in PROCESSLIST table.
    if ( $using_time_ms ) {
-      my $interval  = $config{interval}->{val};
-      my $threshold = $interval + ($interval / 2);
-
-      my %new_prev_proc;
       foreach my $proc ( @full_processlist ) {
          next unless $proc->{time};
-         if ( !exists $prev_proc->{$proc->{id}} ) {
-            # New proc.
-            my $adjusted_time 
-               = $proc->{time} > 31_556_926 # one year
-               ? 0
-               : $proc->{time};
-            $proc->{time}               = $adjusted_time;
-            $new_prev_proc{$proc->{id}} = $adjusted_time;
-         }
-         elsif ( $proc->{time} > $prev_proc->{$proc->{id}} ) {
-            # Same proc, time has increased so it's probably the same Command.
-            my $adjusted_time
-               = $proc->{time} - $prev_proc->{$proc->{id}} > $threshold
-               ? $prev_proc->{$proc->{id}} + $interval
-               : $proc->{time};
-            $proc->{time}               = $adjusted_time;
-            $new_prev_proc{$proc->{id}} = $adjusted_time;
-         }
-         else {
-            # Same proc, new Command (new time is less than old time).
-            # E.g., this happens when a proc goes from Sleep to Executing.
-            $new_prev_proc{$proc->{id}} = $proc->{time};
-         }
+         $proc->{time} = $config{interval}->{val} if $proc->{time} > 31_556_926;
       }
-      
-      $prev_proc = \%new_prev_proc;
    }
 
    # Create header
