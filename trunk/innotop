@@ -1410,9 +1410,6 @@ my %col_props = (
 # Actual DBI connections to MySQL servers.
 my %dbhs;
 
-# True if using TIME_MS column from INFORMATION_SCHEMA.PROCEESSLIST.
-my $using_time_ms = 0;
-
 # Command-line parameters {{{2
 # ###########################################################################
 
@@ -4302,9 +4299,7 @@ my %stmt_maker_for = (
       eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
          my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.PROCESSLIST LIKE 'TIME_MS'});
          if ( @$cols ) { # The TIME_MS colum exists
-            $using_time_ms = 1;
-            $sth = $dbh->prepare(q{SELECT /*innotop*/ ID, USER, HOST, DB, COMMAND, TIME_MS/1000 AS TIME, STATE, }
-               . q{INFO FROM INFORMATION_SCHEMA.PROCESSLIST});
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ ID, USER, HOST, DB, COMMAND, CASE WHEN TIME_MS/1000 > 365*86400 THEN TIME ELSE TIME_MS/1000 END AS TIME, STATE, INFO FROM INFORMATION_SCHEMA.PROCESSLIST});
          }
       };
       $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
@@ -5214,14 +5209,6 @@ sub display_Q {
    # Get the data
    my @cxns             = get_connections();
    my @full_processlist = get_full_processlist(@cxns);
-
-   # Correct for Percona Server TIME_MS bug in PROCESSLIST table.
-   if ( $using_time_ms ) {
-      foreach my $proc ( @full_processlist ) {
-         next unless $proc->{time};
-         $proc->{time} = $config{interval}->{val} if $proc->{time} > 31_556_926;
-      }
-   }
 
    # Create header
    if ( $wanted{q_header} ) {
