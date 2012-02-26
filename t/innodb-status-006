@@ -1,0 +1,135 @@
+=====================================
+101220 16:55:47 INNODB MONITOR OUTPUT
+=====================================
+Per second averages calculated from the last 6 seconds
+-----------------
+BACKGROUND THREAD
+-----------------
+srv_master_thread loops: 1090 1_second, 1090 sleeps, 102 10_second, 143 background, 143 flush
+srv_master_thread log flush and writes: 1113
+----------
+SEMAPHORES
+----------
+OS WAIT ARRAY INFO: reservation count 6307, signal count 47086
+Mutex spin waits 8538726, rounds 8236962, OS waits 4010
+RW-shared spins 16635, rounds 71131, OS waits 683
+RW-excl spins 3522, rounds 105509, OS waits 1268
+Spin rounds per wait: 0.96 mutex, 4.28 RW-shared, 29.96 RW-excl
+------------------------
+LATEST FOREIGN KEY ERROR
+------------------------
+101220 15:12:17 Transaction:
+TRANSACTION 3837B, ACTIVE 0 sec, OS thread id 4513800192 inserting
+mysql tables in use 1, locked 1
+3 lock struct(s), heap size 376, 1 row lock(s), undo log entries 1
+MySQL thread id 517, query id 177937 localhost 127.0.0.1 connusr update
+INSERT INTO TABLE_CHANGE_LOG (TABLE_CHANGED, ACTION, ROW_IDENTIFIER, USER_ID, ACTION_DATETIME) VALUES ('CAMPAIGN_MASTER','ADD',0,0,'2010-12-20 15:12:17')
+Foreign key constraint fails for table `connect`.`table_change_log`:
+,
+  CONSTRAINT `FK_CHANGE_LOG_USER` FOREIGN KEY (`USER_ID`) REFERENCES `user_master` (`USER_ID`)
+Trying to add in child table, in index `FK_CHANGE_LOG_USER` tuple:
+DATA TUPLE: 2 fields;
+ 0: len 8; hex 8000000000000000; asc         ;;
+ 1: len 6; hex 00000004f1c3; asc       ;;
+
+But in parent table `connect`.`user_master`, in index `PRIMARY`,
+the closest match we can find is record:
+PHYSICAL RECORD: n_fields 18; compact format; info bits 0
+ 0: len 8; hex 8000000000000064; asc        d;;
+ 1: len 6; hex 00000003831e; asc       ;;
+ 2: len 7; hex f5000003560110; asc     V  ;;
+ 3: len 8; hex 8000000000000064; asc        d;;
+ 4: len 5; hex 61646d696e; asc admin;;
+ 5: len 10; hex 151c1f1c08081e00011c; asc           ;;
+ 6: SQL NULL;
+ 7: SQL NULL;
+ 8: len 1; hex 4e; asc N;;
+ 9: len 8; hex 800012482e162fb0; asc    H. / ;;
+ 10: len 3; hex 534544; asc SED;;
+ 11: len 1; hex 30; asc 0;;
+ 12: len 8; hex 800012482e162fb0; asc    H. / ;;
+ 13: len 3; hex 534544; asc SED;;
+ 14: SQL NULL;
+ 15: len 8; hex 8000000000000001; asc         ;;
+ 16: SQL NULL;
+ 17: SQL NULL;
+
+------------
+TRANSACTIONS
+------------
+Trx id counter 38F90
+Purge done for trx's n:o < 38F6C undo n:o < 0
+History list length 130
+LIST OF TRANSACTIONS FOR EACH SESSION:
+---TRANSACTION 0, not started, OS thread id 4513251328
+MySQL thread id 589, query id 215586 localhost root
+SHOW ENGINE INNODB STATUS
+---TRANSACTION 0, not started, OS thread id 4513525760
+MySQL thread id 577, query id 215585 localhost root
+--------
+FILE I/O
+--------
+I/O thread 0 state: waiting for i/o request (insert buffer thread)
+I/O thread 1 state: waiting for i/o request (log thread)
+I/O thread 2 state: waiting for i/o request (read thread)
+I/O thread 3 state: waiting for i/o request (read thread)
+I/O thread 4 state: waiting for i/o request (read thread)
+I/O thread 5 state: waiting for i/o request (read thread)
+I/O thread 6 state: waiting for i/o request (write thread)
+I/O thread 7 state: waiting for i/o request (write thread)
+I/O thread 8 state: waiting for i/o request (write thread)
+I/O thread 9 state: waiting for i/o request (write thread)
+Pending normal aio reads: 0 [0, 0, 0, 0] , aio writes: 0 [0, 0, 0, 0] ,
+ ibuf aio reads: 0, log i/o's: 0, sync i/o's: 0
+Pending flushes (fsync) log: 0; buffer pool: 0
+3115 OS file reads, 41716 OS file writes, 32225 OS fsyncs
+0.00 reads/s, 0 avg bytes/read, 0.00 writes/s, 0.00 fsyncs/s
+-------------------------------------
+INSERT BUFFER AND ADAPTIVE HASH INDEX
+-------------------------------------
+Ibuf: size 1, free list len 33, seg size 35, 0 merges
+merged operations:
+ insert 0, delete mark 0, delete 0
+discarded operations:
+ insert 0, delete mark 0, delete 0
+Hash table size 276707, node heap has 58 buffer(s)
+0.00 hash searches/s, 0.00 non-hash searches/s
+---
+LOG
+---
+Log sequence number 1018231439
+Log flushed up to   1018231439
+Last checkpoint at  1018231439
+0 pending log writes, 0 pending chkp writes
+26019 log i/o's done, 0.00 log i/o's/second
+----------------------
+BUFFER POOL AND MEMORY
+----------------------
+Total memory allocated 137363456; in additional pool allocated 0
+Dictionary memory allocated 2255860
+Buffer pool size   8192
+Free buffers       4605
+Database pages     3529
+Old database pages 1282
+Modified db pages  0
+Pending reads 0
+Pending writes: LRU 0, flush list 0, single page 0
+Pages made young 752, not young 0
+0.00 youngs/s, 0.00 non-youngs/s
+Pages read 2571, created 7994, written 47901
+0.00 reads/s, 0.00 creates/s, 0.00 writes/s
+No buffer pool page gets since the last printout
+Pages read ahead 0.00/s, evicted without access 0.00/s
+LRU len: 3529, unzip_LRU len: 0
+I/O sum[0]:cur[0], unzip sum[0]:cur[0]
+--------------
+ROW OPERATIONS
+--------------
+0 queries inside InnoDB, 0 queries in queue
+1 read views open inside InnoDB
+Main thread id 4496171008, state: waiting for server activity
+Number of rows inserted 371946, updated 19634, deleted 244011, read 320607956
+0.00 inserts/s, 0.00 updates/s, 0.00 deletes/s, 0.00 reads/s
+----------------------------
+END OF INNODB MONITOR OUTPUT
+============================
