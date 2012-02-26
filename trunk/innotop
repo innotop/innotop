@@ -7217,8 +7217,10 @@ sub load_config {
    if ($opts{c}) {
       $conf_file = $opts{c};
    }  
-   # innotop got upgraded and this is an old config file.
-   elsif ( -f "$homepath/.innotop" or -f "$homepath/.innotop/innotop.ini" ) {
+   # If we don't have a new config file but we do have an old one,
+   # innotop got upgraded and this is an old config file. Convert it, but
+   # don't overwrite something existing.
+   elsif ( ! -f $default_home_conf && ( -f "$homepath/.innotop" or -f "$homepath/.innotop/innotop.ini" ) ) {
       $conf_file = $default_home_conf;
       if ( -f  "$homepath/.innotop") {
          $old_filename = "$homepath/.innotop";
