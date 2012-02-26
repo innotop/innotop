@@ -1822,7 +1822,7 @@ my %builtin_filters = (
    },
    hide_slave_io => {
       text => <<'      END',
-         return !$set->{state} || $set->{state} !~ m/^(?:Waiting for master|Has read all relay)/;
+         return !$set->{state} || $set->{state} !~ m/^(?:Waiting for master|read all relay)/;
       END
       note => 'Removes slave I/O threads from the list',
       tbls => [qw(processlist slave_io_status)],
