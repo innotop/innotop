@@ -5,7 +5,17 @@ use English qw(-no_match_vars);
 use Test::More tests => 3;
 use Data::Dumper;
 
-require "../innotop";
+my $path;
+BEGIN {
+   # Figure out the path to the directory above this file's dirname.
+   my $pwd = `pwd`;
+   chomp $pwd;
+   $path = "$pwd/$0";
+   $path =~ s{/[^/]+/[^/]+$}{/};
+   unshift @INC, $path;
+};
+my $class = "innotop";
+require $class;
 my $innodb_parser = new InnoDBParser;
 
 sub read_file {
@@ -18,7 +28,7 @@ sub read_file {
 }
 
 my %tests = (
-   'innodb-status-001' => {
+   $path . 't/innodb-status-001' => {
       IB_bp_add_pool_alloc              => '0',
       IB_bp_awe_mem_alloc               => 0,
       IB_bp_buf_free                    => '8172',
@@ -284,7 +294,7 @@ my %tests = (
       ],
       IB_tx_trx_id_counter => 908
    },
-   'innodb-status-002' => {
+   $path . 't/innodb-status-002' => {
       IB_bp_add_pool_alloc              => '0',
       IB_bp_awe_mem_alloc               => 0,
       IB_bp_buf_free                    => '378834',
@@ -523,7 +533,7 @@ my %tests = (
       ],
       IB_tx_trx_id_counter => '2804F389'
    },
-   'innodb-status-006' => {
+   $path . 't/innodb-status-006' => {
       IB_bp_add_pool_alloc             => '0',
       IB_bp_awe_mem_alloc              => 0,
       IB_bp_buf_free                   => '4605',
