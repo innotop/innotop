@@ -3,7 +3,7 @@ Changelog for innotop:
 2012-02-25: version 1.8.1
 
    Bugs fixed:
-   * Various errors caused by variations in MySQL 5.5
+   * Various parsing errors with MySQL 5.5 (issue 23, 45, 47, 51, 52, 53).
    * RPM spec file prevented building on CentOS 5.5 using mock (issue 44).
    * Tests worked only from the test subdirectory (issue 43).
 
