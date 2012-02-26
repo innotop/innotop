@@ -949,7 +949,7 @@ sub parse_tx_text {
 
    if ( $thread_line ) {
       # These parts can always be gotten.
-      ( $mysql_thread_id, $query_id ) = $thread_line =~ m/^MySQL thread id $d, query id $d/m;
+      ( $mysql_thread_id, $query_id ) = $thread_line =~ m/^MySQL thread id $d, .*?query id $d/m;
 
       # If it's a master/slave thread, "Has (read|sent) all" may be the thread's
       # proc_info.  In these cases, there won't be any host/ip/user info
@@ -1160,12 +1160,19 @@ sub parse_ib_section {
    # the source code shows there will only ever be one).  I have to parse both
    # cases here, but I assume there will only be one.
    @{$section}{ 'size', 'free_list_len', 'seg_size' }
-      = $fulltext =~ m/^Ibuf(?: for space 0)?: size $d, free list len $d, seg size $d,$/m;
+      = $fulltext =~ m/^Ibuf(?: for space 0)?: size $d, free list len $d, seg size $d/m;
    @{$section}{ 'inserts', 'merged_recs', 'merges' }
       = $fulltext =~ m/^$d inserts, $d merged recs, $d merges$/m;
+   if ( ! defined $section->{inserts} ) {
+      @{$section}{ 'inserts' }
+         = $fulltext =~ m/merged operations:\n  insert $d,/s;
+      # This isn't really true, but it's not really important either. We already
+      # aren't supporting the 'delete' operations.
+      @{$section}{ 'merged_recs', 'merges' } = (0, 0);
+   }
 
    @{$section}{ 'hash_table_size', 'used_cells', 'bufs_in_node_heap' }
-      = $fulltext =~ m/^Hash table size $d, used cells $d, node heap has $d buffer\(s\)$/m;
+      = $fulltext =~ m/^Hash table size $d(?:, used cells $d)?, node heap has $d buffer\(s\)$/m;
    @{$section}{ 'hash_searches_s', 'non_hash_searches_s' }
       = $fulltext =~ m{^$f hash searches/s, $f non-hash searches/s$}m;
 
@@ -1226,6 +1233,12 @@ sub parse_sm_section {
       = $fulltext =~ m/^Mutex spin waits $d, rounds $d, OS waits $d$/m;
    @{$section}{ 'rw_shared_spins', 'rw_shared_os_waits', 'rw_excl_spins', 'rw_excl_os_waits' }
       = $fulltext =~ m/^RW-shared spins $d, OS waits $d; RW-excl spins $d, OS waits $d$/m;
+   if ( ! defined $section->{rw_shared_spins} ) {
+      @{$section}{ 'rw_shared_spins', 'rw_shared_os_waits'}
+         = $fulltext =~ m/^RW-shared spins $d, rounds \d+, OS waits $d$/m;
+      @{$section}{ 'rw_excl_spins', 'rw_excl_os_waits' }
+         = $fulltext =~ m/^RW-excl spins $d, rounds \d+, OS waits $d$/m;
+   }
 
    # Look for info on waits.
    my @waits = $fulltext =~ m/^(--Thread.*?)^(?=Mutex spin|--Thread)/gms;
@@ -1256,14 +1269,14 @@ sub parse_bp_section {
    @{$section}{'page_reads_sec', 'page_creates_sec', 'page_writes_sec'}
       = $fulltext =~ m{^$f reads/s, $f creates/s, $f writes/s$}m;
    @{$section}{'buf_pool_hits', 'buf_pool_reads'}
-      = $fulltext =~ m{Buffer pool hit rate $d / $d$}m;
+      = $fulltext =~ m{Buffer pool hit rate $d / $d}m;
    if ($fulltext =~ m/^No buffer pool page gets since the last printout$/m) {
       @{$section}{'buf_pool_hits', 'buf_pool_reads'} = (0, 0);
       @{$section}{'buf_pool_hit_rate'} = '--';
    }
    else {
       @{$section}{'buf_pool_hit_rate'}
-         = $fulltext =~ m{Buffer pool hit rate (\d+ / \d+)$}m;
+         = $fulltext =~ m{Buffer pool hit rate (\d+ / \d+)}m;
    }
    @{$section}{'reads_pending'} = $fulltext =~ m/^Pending reads $d/m;
    @{$section}{'writes_pending_lru', 'writes_pending_flush_list', 'writes_pending_single_page' }
@@ -1303,7 +1316,7 @@ sub parse_io_section {
 
    # Grab the reads/writes/flushes info
    @{$section}{ 'pending_normal_aio_reads', 'pending_aio_writes' }
-      = $fulltext =~ m/^Pending normal aio reads: $d, aio writes: $d,$/m;
+      = $fulltext =~ m/^Pending normal aio reads: $d(?: [^\]]*\])?, aio writes: $d/m;
    @{$section}{ 'pending_ibuf_aio_reads', 'pending_log_ios', 'pending_sync_ios' }
       = $fulltext =~ m{^ ibuf aio reads: $d, log i/o's: $d, sync i/o's: $d$}m;
    @{$section}{ 'flush_type', 'pending_log_flushes', 'pending_buffer_pool_flushes' }
