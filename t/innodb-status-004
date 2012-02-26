@@ -1,0 +1,133 @@
+*************************** 1. row ***************************
+  Type: InnoDB
+  Name: 
+Status: 
+=====================================
+120118 13:23:16 INNODB MONITOR OUTPUT
+=====================================
+Per second averages calculated from the last 39 seconds
+-----------------
+BACKGROUND THREAD
+-----------------
+srv_master_thread loops: 115984 1_second, 115983 sleeps, 11253 10_second, 7921 background, 7921 flush
+srv_master_thread log flush and writes: 118163
+----------
+SEMAPHORES
+----------
+OS WAIT ARRAY INFO: reservation count 24103, signal count 25061
+Mutex spin waits 50177, rounds 436385, OS waits 4143
+RW-shared spins 17481, rounds 505350, OS waits 16775
+RW-excl spins 259, rounds 93826, OS waits 3039
+Spin rounds per wait: 8.70 mutex, 28.91 RW-shared, 362.26 RW-excl
+------------------------
+LATEST DETECTED DEADLOCK
+------------------------
+111226 14:48:08
+*** (1) TRANSACTION:
+TRANSACTION 6FE138, ACTIVE 0 sec inserting
+mysql tables in use 1, locked 1
+LOCK WAIT 4 lock struct(s), heap size 1248, 3 row lock(s)
+MySQL thread id 424565, OS thread handle 0x40e13940, query id 446715 <anonymized>
+INSERT INTO cache_menu <anonymized>
+*** (1) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 7169 page no 14 n bits 80 index "PRIMARY" of table "<anonymized>"."cache_menu" trx id 6FE138 lock_mode X insert intention waiting
+Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0
+ 0: len 8; hex 73757072656d756d; asc supremum;;
+
+*** (2) TRANSACTION:
+TRANSACTION 6FE12E, ACTIVE 0 sec inserting
+mysql tables in use 1, locked 1
+4 lock struct(s), heap size 1248, 3 row lock(s)
+MySQL thread id 424568, OS thread handle 0x40e57940, query id 446716 <anonymized>
+INSERT INTO cache_menu <anonymized>
+*** (2) HOLDS THE LOCK(S):
+RECORD LOCKS space id 7169 page no 14 n bits 80 index "PRIMARY" of table "<anonymized>"."cache_menu" trx id 6FE12E lock_mode X
+Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0
+ 0: len 8; hex 73757072656d756d; asc supremum;;
+
+*** (2) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 7169 page no 14 n bits 80 index "PRIMARY" of table "<anonymized>"."cache_menu" trx id 6FE12E lock_mode X insert intention waiting
+Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0
+ 0: len 8; hex 73757072656d756d; asc supremum;;
+
+*** WE ROLL BACK TRANSACTION (2)
+------------
+TRANSACTIONS
+------------
+Trx id counter 9BB413
+Purge done for trx's n:o < 9BB412 undo n:o < 0
+History list length 1001
+LIST OF TRANSACTIONS FOR EACH SESSION:
+---TRANSACTION 0, not started
+MySQL thread id 2724342, OS thread handle 0x4996d940, query id 131346550 localhost root
+SHOW ENGINE INNODB STATUS
+---TRANSACTION 0, not started
+MySQL thread id 2724315, OS thread handle 0x40e13940, query id 131346524 localhost root
+--------
+FILE I/O
+--------
+I/O thread 0 state: waiting for i/o request (insert buffer thread)
+I/O thread 1 state: waiting for i/o request (log thread)
+I/O thread 2 state: waiting for i/o request (read thread)
+I/O thread 3 state: waiting for i/o request (read thread)
+I/O thread 4 state: waiting for i/o request (read thread)
+I/O thread 5 state: waiting for i/o request (read thread)
+I/O thread 6 state: waiting for i/o request (write thread)
+I/O thread 7 state: waiting for i/o request (write thread)
+I/O thread 8 state: waiting for i/o request (write thread)
+I/O thread 9 state: waiting for i/o request (write thread)
+Pending normal aio reads: 0 [0, 0, 0, 0] , aio writes: 0 [0, 0, 0, 0] ,
+ ibuf aio reads: 0, log i/o's: 0, sync i/o's: 0
+Pending flushes (fsync) log: 0; buffer pool: 0
+21645 OS file reads, 3808477 OS file writes, 2998804 OS fsyncs
+0.00 reads/s, 0 avg bytes/read, 0.00 writes/s, 0.00 fsyncs/s
+-------------------------------------
+INSERT BUFFER AND ADAPTIVE HASH INDEX
+-------------------------------------
+Ibuf: size 1, free list len 18, seg size 20, 477 merges
+merged operations:
+ insert 97, delete mark 8225, delete 913
+discarded operations:
+ insert 0, delete mark 0, delete 0
+Hash table size 796937, node heap has 1764 buffer(s)
+0.00 hash searches/s, 0.00 non-hash searches/s
+---
+LOG
+---
+Log sequence number 10105955776
+Log flushed up to   10105955776
+Last checkpoint at  10105955776
+0 pending log writes, 0 pending chkp writes
+2702576 log i/o's done, 0.00 log i/o's/second
+----------------------
+BUFFER POOL AND MEMORY
+----------------------
+Total memory allocated 412090368; in additional pool allocated 0
+Dictionary memory allocated 11180352
+Buffer pool size   24575
+Free buffers       8
+Database pages     22803
+Old database pages 8397
+Modified db pages  0
+Pending reads 0
+Pending writes: LRU 0, flush list 0, single page 0
+Pages made young 49712, not young 0
+0.00 youngs/s, 0.00 non-youngs/s
+Pages read 21483, created 97048, written 2192576
+0.00 reads/s, 0.00 creates/s, 0.00 writes/s
+No buffer pool page gets since the last printout
+Pages read ahead 0.00/s, evicted without access 0.00/s, Random read ahead 0.00/s
+LRU len: 22803, unzip_LRU len: 0
+I/O sum[0]:cur[0], unzip sum[0]:cur[0]
+--------------
+ROW OPERATIONS
+--------------
+0 queries inside InnoDB, 0 queries in queue
+1 read views open inside InnoDB
+Main thread process no. 4958, id 1201822016, state: waiting for server activity
+Number of rows inserted 2719476, updated 1504406, deleted 877686, read 170171101
+0.00 inserts/s, 0.00 updates/s, 0.00 deletes/s, 0.00 reads/s
+----------------------------
+END OF INNODB MONITOR OUTPUT
+============================
+

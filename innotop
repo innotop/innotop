@@ -369,7 +369,7 @@ my $n  = qr/([^`\s]+)/;                # MySQL object name
 my $w  = qr/(\w+)/;                    # Words
 my $fl = qr/([\w\.\/]+) line $d/;      # Filename and line number
 my $h  = qr/((?:0x)?[0-9a-f]*)/;       # Hex
-my $s  = qr/(\d{6} .\d:\d\d:\d\d)/;    # InnoDB timestamp
+my $s  = qr/(\d{6} .?\d:\d\d:\d\d)/;   # InnoDB timestamp
 
 # If you update this variable, also update the SYNOPSIS in the pod.
 my %innodb_section_headers = (
@@ -506,10 +506,15 @@ sub parse_status_text {
             $innodb_sections{$section}->[1] ||= $innodb_data{'got_all'};
          }
 
-         $innodb_data{'sections'}->{ $header }
-            ->{'fulltext'} = $innodb_sections{$section}->[0];
-         $innodb_data{'sections'}->{ $header }
-            ->{'complete'} = $innodb_sections{$section}->[1];
+         if ( $header && $section ) {
+            $innodb_data{'sections'}->{ $header }
+               ->{'fulltext'} = $innodb_sections{$section}->[0];
+            $innodb_data{'sections'}->{ $header }
+               ->{'complete'} = $innodb_sections{$section}->[1];
+         }
+         else {
+            _debug( $debug, "header = " . ($header || 'undef') . ", section = " . ($section || 'undef')) if $debug;
+         }
       }
    };
    if ( $EVAL_ERROR ) {
