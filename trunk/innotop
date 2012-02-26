@@ -645,6 +645,9 @@ sub parse_fk_cant_drop_parent_error {
       =~ m{because it is referenced by `(.*)/(.*)`}m;
 
    ( $section->{'reason'} ) = $fulltext =~ m/(Cannot .*)/s;
+   if ( !defined $section->{reason} ) {
+      ( $section->{'reason'} ) = $fulltext =~ m/(Trying to add .*)/s;
+   }
    $section->{'reason'} =~ s/\n(?:InnoDB: )?/ /gm
       if $section->{'reason'};
 
@@ -715,7 +718,7 @@ sub parse_fk_transaction_error {
    # no matching parent record (row_ins_foreign_report_add_err).
 
    @{$section}{ qw(reason child_db child_table) }
-      = $fulltext =~ m{^(Foreign key constraint fails for table `(.*)/(.*)`:)$}m;
+      = $fulltext =~ m{^(Foreign key constraint fails for table `(.*?)`?[/.]`?(.*)`:)$}m;
 
    @{$section}{ qw(fk_name col_name parent_db parent_table parent_col) }
       = $fulltext
@@ -4983,7 +4986,7 @@ sub display_F {
 
    if ( $innodb_status->{IB_fk_timestring} ) {
 
-      push @display_lines, 'Reason: ' . $innodb_status->{IB_fk_reason};
+      push @display_lines, 'Reason: ' . ($innodb_status->{IB_fk_reason} || 'unknown');
 
       # Display FK errors caused by invalid DML.
       if ( $innodb_status->{IB_fk_txn} ) {
