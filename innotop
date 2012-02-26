@@ -4244,7 +4244,7 @@ my %stmt_maker_for = (
             $sth = $dbh->prepare(q{SELECT /*innotop*/ * FROM INFORMATION_SCHEMA.INDEX_STATISTICS});
          }
       };
-      $sth ||= $dbh->prepare('SELECT /*innotop*/ "" FROM DUAL WHERE 1 = 0');
+      $sth ||= $dbh->prepare(q{SELECT /*innotop*/ '' FROM DUAL WHERE 1 = 0});
       return $sth;
    },
    INDEX_TABLE_STATISTICS => sub {
@@ -4261,7 +4261,7 @@ my %stmt_maker_for = (
                . q{USING(TABLE_SCHEMA, TABLE_NAME) GROUP BY L.TABLE_SCHEMA, L.TABLE_NAME});
          }
       };
-      $sth ||= $dbh->prepare('SELECT /*innotop*/ "" FROM DUAL WHERE 1 = 0');
+      $sth ||= $dbh->prepare(q{SELECT /*innotop*/ '' FROM DUAL WHERE 1 = 0});
       return $sth;
    },
    INNODB_STATUS => sub {
@@ -4337,7 +4337,7 @@ my %stmt_maker_for = (
             $sth = $dbh->prepare(q{SELECT /*innotop*/ * FROM INFORMATION_SCHEMA.TABLE_STATISTICS});
          }
       };
-      $sth ||= $dbh->prepare('SELECT /*innotop*/ "" FROM DUAL WHERE 1 = 0');
+      $sth ||= $dbh->prepare(q{SELECT /*innotop*/ '' FROM DUAL WHERE 1 = 0});
       return $sth;
    },
 );

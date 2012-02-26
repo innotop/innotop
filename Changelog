@@ -1,5 +1,8 @@
 Changelog for innotop:
 
+   Bugs fixed:
+   * Double-quotes were used to terminate strings in SQL (issue 57).
+
 2012-02-25: version 1.8.1
 
    Bugs fixed:
