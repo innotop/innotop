@@ -5,6 +5,7 @@ Changelog for innotop:
    Bugs fixed:
    * Various errors caused by variations in MySQL 5.5
    * RPM spec file prevented building on CentOS 5.5 using mock (issue 44).
+   * Tests worked only from the test subdirectory (issue 43).
 
 2010-11-06: version 1.8.0
 
