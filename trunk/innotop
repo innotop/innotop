@@ -1695,8 +1695,7 @@ my %columns = (
    pct                         => { hdr => 'Pct',                 num => 1, label => 'Percentage' },
    pending_chkp_writes         => { hdr => 'Chkpt Writes',        num => 1, label => 'Pending log checkpoint writes' },
    pending_log_writes          => { hdr => 'Log Writes',          num => 1, label => 'Pending log writes' },
-   pending_data_ios            => { hdr => 'DPend',               num => 1, label => 'Pending data I/Os' },
-   pending_log_ios             => { hdr => 'LPend',               num => 1, label => 'Pending log I/Os' },
+   pending_ios                 => { hdr => 'PendIO',              num => 1, label => 'Pending InnoDB I/Os' },
    port                        => { hdr => 'Port',                num => 1, label => 'Client port number', },
    possible_keys               => { hdr => 'Poss. Keys',          num => 0, label => 'Possible keys' },
    proc_no                     => { hdr => 'Proc',                num => 1, label => 'Process number' },
@@ -2933,18 +2932,21 @@ my %tbl_meta = (
          'open'             => { src => 'Open_tables' },
          slave_running      => { src => 'Slave_running' },
          time_behind_master => { src => 'time_behind_master', hdr => 'ReplLag' , trans => [qw(secs_to_time)] },
-         pending_data_ios   => { src => 'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+Innodb_data_pending_writes' },
-         pending_log_ios    => { src => 'Innodb_os_log_pending_fsyncs+Innodb_os_log_pending_writes' },
+         pending_ios        => { src =>
+         'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+'
+         . 'Innodb_data_pending_writes+Innodb_os_log_pending_fsyncs+'
+         . 'Innodb_os_log_pending_writes' },
       },
       visible   => [qw(cxn uptime spark_qps qps max_query_time spark_run run
                        connections open slave_running
-                       time_behind_master pending_data_ios pending_log_ios)],
+                       time_behind_master pending_ios)],
       filters   => [],
       sort_cols => 'cxn',
       sort_dir  => '1',
       innodb    => '',
       colors   => [
          { col => 'slave_running',      op => 'ne', arg => 'ON',    color => 'black on_red' },
+         { col => 'pending_ios',        op => '>',  arg => '10',    color => 'black on_yellow' },
          { col => 'time_behind_master', op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'time_behind_master', op => '>',  arg => 600,     color => 'yellow' },
          { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
