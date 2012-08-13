@@ -1443,6 +1443,7 @@ my @opt_spec = (
    { s => 'delay|d=f',  d => 'Delay between updates in seconds',  c => 'interval' },
    { s => 'mode|m=s',   d => 'Operating mode to start in',        c => 'mode' },
    { s => 'inc|i!',     d => 'Measure incremental differences',   c => 'status_inc' },
+   { s => 'spark=i',    d => 'Length of status sparkline (default 10)', c=> 'spark' },
    { s => 'write|w',    d => 'Write running configuration into home directory if no config files were loaded' },
    { s => 'skipcentral|s',     d => 'Skip reading the central configuration file' },
    { s => 'version',    d => 'Output version information and exit' },
@@ -1566,6 +1567,7 @@ my %columns = (
    child_table                 => { hdr => 'Child Table',         num => 0, label => 'The child table' },
    cmd                         => { hdr => 'Cmd',                 num => 0, label => 'Type of command being executed', },
    cnt                         => { hdr => 'Cnt',                 num => 0, label => 'Count', agg => 'count', aggonly => 1 },
+   connections                 => { hdr => 'Cxns',                num => 1, label => 'Connections' },
    connect_retry               => { hdr => 'Connect Retry',       num => 1, label => 'Slave connect-retry timeout' },
    cxn                         => { hdr => 'CXN',                 num => 0, label => 'Connection from which the data came', },
    db                          => { hdr => 'DB',                  num => 0, label => 'Current database', },
@@ -1638,6 +1640,7 @@ my %columns = (
    master_ssl_key              => { hdr => 'Master SSL Key',      num => 0, label => 'Master SSL Key' },
    master_user                 => { hdr => 'Master User',         num => 0, label => 'Master username' },
    max_txn                     => { hdr => 'MaxTxnTime',          num => 1, label => 'MaxTxn' },
+   max_query_time              => { hdr => 'MaxSQL',              num => 1, label => 'Longest running SQL' },
    merged_recs                 => { hdr => 'Merged Recs',         num => 1, label => 'Merged records' },
    merges                      => { hdr => 'Merges',              num => 1, label => 'Merges' },
    mutex_os_waits              => { hdr => 'Waits',               num => 1, label => 'Mutex OS Waits' },
@@ -1660,6 +1663,7 @@ my %columns = (
    num_txns                    => { hdr => 'Txns',                num => 1, label => 'Number of transactions' },
    num_updates                 => { hdr => 'Upd',                 num => 1, label => 'Number of updates' },
    num_updates_sec             => { hdr => 'Upd/Sec',             num => 1, label => 'Number of updates' },
+   'open'                      => { hdr => 'Tbls',                num => 1, label => 'Number of open tables' },
    os_file_reads               => { hdr => 'OS Reads',            num => 1, label => 'OS file reads' },
    os_file_writes              => { hdr => 'OS Writes',           num => 1, label => 'OS file writes' },
    os_fsyncs                   => { hdr => 'OS fsyncs',           num => 1, label => 'OS fsyncs' },
@@ -1691,6 +1695,8 @@ my %columns = (
    pct                         => { hdr => 'Pct',                 num => 1, label => 'Percentage' },
    pending_chkp_writes         => { hdr => 'Chkpt Writes',        num => 1, label => 'Pending log checkpoint writes' },
    pending_log_writes          => { hdr => 'Log Writes',          num => 1, label => 'Pending log writes' },
+   pending_data_ios            => { hdr => 'DPend',               num => 1, label => 'Pending data I/Os' },
+   pending_log_ios             => { hdr => 'LPend',               num => 1, label => 'Pending log I/Os' },
    port                        => { hdr => 'Port',                num => 1, label => 'Client port number', },
    possible_keys               => { hdr => 'Poss. Keys',          num => 0, label => 'Possible keys' },
    proc_no                     => { hdr => 'Proc',                num => 1, label => 'Process number' },
@@ -1723,10 +1729,13 @@ my %columns = (
    rows_changed_x_indexes      => { hdr => 'Chg X Idx',           num => 1, label => 'Number of rows changed X indexes' },
    rows_read                   => { hdr => 'Reads',               num => 1, label => 'Number of rows read' },
    rows_read_from_indexes      => { hdr => 'Reads Via Idx',       num => 1, label => 'Number of rows read from indexes' },
+   run                         => { hdr => 'Run',                 num => 1, label => 'Threads_running' },
    rw_excl_os_waits            => { hdr => 'RW Waits',            num => 1, label => 'R/W Excl. OS Waits' },
    rw_excl_spins               => { hdr => 'RW Spins',            num => 1, label => 'R/W Excl. Spins' },
    rw_shared_os_waits          => { hdr => 'Sh Waits',            num => 1, label => 'R/W Shared OS Waits' },
    rw_shared_spins             => { hdr => 'Sh Spins',            num => 1, label => 'R/W Shared Spins' },
+   spark_qps                   => { hdr => 'QPS',                 num => 0, label => 'QPS Sparkline' },
+   spark_run                   => { hdr => 'Run',                 num => 0, label => 'Threads_running Sparkline' },
    scan_type                   => { hdr => 'Type',                num => 0, label => 'Scan type in chosen' },
    seg_size                    => { hdr => 'Seg. Size',           num => 1, label => 'Segment size' },
    select_type                 => { hdr => 'Select Type',         num => 0, label => 'Type of select used' },
@@ -1737,6 +1746,7 @@ my %columns = (
    slave_io_running            => { hdr => 'Slave-IO',            num => 0, label => 'Whether the slave I/O thread is running' },
    slave_io_state              => { hdr => 'Slave IO State',      num => 0, label => 'Slave I/O thread state' },
    slave_open_temp_tables      => { hdr => 'Temp',                num => 1, label => 'Slave open temp tables' },
+   slave_running               => { hdr => 'Repl',                num => 0, label => 'Slave running' },
    slave_sql_running           => { hdr => 'Slave-SQL',           num => 0, label => 'Whether the slave SQL thread is running' },
    slow                        => { hdr => 'Slow',                num => 1, label => 'How many slow queries', },
    space_id                    => { hdr => 'Space',               num => 1, label => 'Tablespace ID' },
@@ -1764,6 +1774,7 @@ my %columns = (
    undo_for                    => { hdr => 'Undo',                num => 0, label => 'Undo for' },
    until_condition             => { hdr => 'Until Condition',     num => 0, label => 'Slave until condition' },
    until_log_file              => { hdr => 'Until Log File',      num => 0, label => 'Slave until log file' },
+   uptime                      => { hdr => 'Uptime',              num => 1, label => 'Uptime' },
    until_log_pos               => { hdr => 'Until Log Pos',       num => 1, label => 'Slave until log position' },
    used_cells                  => { hdr => 'Cells Used',          num => 1, label => 'Number of cells used' },
    used_bufs                   => { hdr => 'Used Bufs',           num => 1, label => 'Number of buffer pool pages used' },
@@ -2906,6 +2917,42 @@ my %tbl_meta = (
       group_by => [],
       aggregate => 0,
    },
+   health_dashboard => {
+      capt         => 'Health Dashboard',
+      hide_caption => 1,
+      cust => {},
+      cols => {
+         cxn                => { src => 'cxn' },
+         uptime             => { src => 'Uptime', trans => [qw(secs_to_time)] },
+         qps                => { src => 'Questions/Uptime_hires', dec => 1, trans => [qw(shorten)] },
+         spark_qps          => { src => 'SPARK_qps' },
+         run                => { src => 'user_threads_running' },
+         spark_run          => { src => 'SPARK_run' },
+         max_query_time     => { src => 'max_query_time', trans => [qw(secs_to_time)] },
+         connections        => { src => 'Threads_connected' },
+         'open'             => { src => 'Open_tables' },
+         slave_running      => { src => 'Slave_running' },
+         time_behind_master => { src => 'time_behind_master', hdr => 'ReplLag' , trans => [qw(secs_to_time)] },
+         pending_data_ios   => { src => 'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+Innodb_data_pending_writes' },
+         pending_log_ios    => { src => 'Innodb_os_log_pending_fsyncs+Innodb_os_log_pending_writes' },
+      },
+      visible   => [qw(cxn uptime spark_qps qps max_query_time spark_run run
+                       connections open slave_running
+                       time_behind_master pending_data_ios pending_log_ios)],
+      filters   => [],
+      sort_cols => 'cxn',
+      sort_dir  => '1',
+      innodb    => '',
+      colors   => [
+         { col => 'slave_running',      op => 'ne', arg => 'ON',    color => 'black on_red' },
+         { col => 'time_behind_master', op => '>',  arg => 30 * 60, color => 'red' },
+         { col => 'time_behind_master', op => '>',  arg => 600,     color => 'yellow' },
+         { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
+         { col => 'max_query_time',     op => '>',  arg => 600,     color => 'yellow' },
+      ],
+      group_by  => [],
+      aggregate => 0,
+   },
 );
 
 # Initialize %tbl_meta from %columns and do some checks.
@@ -2966,6 +3013,19 @@ foreach my $table_name ( keys %tbl_meta ) {
 # Operating modes {{{3
 # ###########################################################################
 my %modes = (
+   A => {
+      hdr               => 'Dashboard',
+      cust              => {},
+      note              => 'Shows health/status dashboard',
+      action_for        => {
+      },
+      display_sub       => \&display_A,
+      connections       => [],
+      server_group      => '',
+      one_connection    => 0,
+      tables            => [qw(health_dashboard)],
+      visible_tables    => [qw(health_dashboard)],
+   },
    B => {
       hdr               => 'InnoDB Buffers',
       cust              => {},
@@ -3385,6 +3445,10 @@ my %action_for = (
       label  => 'Toggle aggregation',
    },
    # TODO: can these be auto-generated from %modes?
+   A => {
+      action => sub { switch_mode('A') },
+      label  => '',
+   },
    B => {
       action => sub { switch_mode('B') },
       label  => '',
@@ -4087,7 +4151,7 @@ my %config = (
       conf => 'ALL',
    },
    mode => {
-      val  => "Q",
+      val  => "A",
       note => "Which mode to start in",
       cmdline => 1,
    },
@@ -4117,7 +4181,13 @@ my %config = (
       val  => '%Y-%m-%dT%H:%M:%S',
       pat  => qr//,
       note => 'The strftime() timestamp format to write in -n mode',
-   }
+   },
+   spark => {
+      val  => 10,
+      note => 'How long to make status variable sparklines',
+      conf => 'ALL',
+      pat  => $int_regex,
+   },
 );
 
 # ###########################################################################
@@ -4324,6 +4394,25 @@ my %stmt_maker_for = (
          }
       };
       $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
+      return $sth;
+   },
+   PROCESSLIST_STATISTICS => sub {
+      my ( $dbh ) = @_;
+      my $sth;
+      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
+         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.PROCESSLIST LIKE 'TIME_MS'});
+         if ( @$cols ) { # The TIME_MS colum exists
+            # We subtract 1 from threads_running because we don't want to
+            # count our own query.
+            $sth = $dbh->prepare(
+               q{SELECT /*innotop*/ }
+               . q{COALESCE(MAX(TIME), 0) AS Max_query_time, COUNT(*) - 1 AS User_threads_running }
+               . q{FROM INFORMATION_SCHEMA.PROCESSLIST }
+               . q{WHERE USER <> 'system user' AND COMMAND = 'Query' }
+            );
+         }
+      };
+      $sth ||= $dbh->prepare('SELECT /*innotop*/ 0 AS User_threads_running, 0 AS Max_query_time');
       return $sth;
    },
    TABLE_STATISTICS => sub {
@@ -4801,6 +4890,42 @@ sub set_s_mode {
 sub start_S_mode {
    $clear_screen_sub->();
    switch_mode('S');
+}
+
+# display_A {{{3
+sub display_A {
+   my @display_lines;
+   my @cxns  = get_connections();
+   get_processlist_stats(@cxns);
+   get_status_info(@cxns);
+   my @visible = get_visible_tables();
+   my %wanted  = map { $_ => 1 } @visible;
+   my @health_dashboard;
+   my %rows_for = (
+      health_dashboard => \@health_dashboard,
+   );
+
+   foreach my $cxn ( @cxns ) {
+      # Get the status variables
+      my $set  = $vars{$cxn}->{$clock};
+      my $pre  = $vars{$cxn}->{$clock-1} || $set;
+      my $hash = extract_values($set, $set, $pre, 'health_dashboard');
+      if ( exists $vars{$cxn}->{$clock - 1} ) {
+         my $inc   = inc(0, $cxn);
+         my $hash2 = extract_values($inc, $set, $pre, 'health_dashboard');
+         map { $hash->{$_} = $hash2->{$_} } qw(qps);
+      }
+      push @health_dashboard, $hash;
+   }
+
+   my $first_table = 0;
+   foreach my $tbl ( @visible ) {
+      push @display_lines, '', set_to_tbl($rows_for{$tbl}, $tbl);
+      push @display_lines, get_cxn_errors(@cxns)
+         if ( $config{debug}->{val} || !$first_table++ );
+   }
+
+   draw_screen(\@display_lines);
 }
 
 # display_B {{{3
@@ -6277,6 +6402,23 @@ sub percent {
    my $digits = $config{num_digits}->{val};
    return sprintf("%.${digits}f", $num * 100)
       . ($config{show_percent}->{val} ? '%' : '');
+}
+
+# sparkify {{{3
+# Find the range (min to max) and divide it up.  Each value then gets put into
+# a bucket and represented by one of these characters: _.-=^
+sub sparkify {
+   my @vals  = @_;
+   my @chars = qw(_ . - = ^);
+   my $min   = min(@vals);
+   my $max   = max(@vals);
+   my $range = ($max - $min) / 4;
+   return "_" x scalar(@vals) if !$min || !$max || $max == $min || !$range;
+   my $result = "";
+   foreach my $v ( @vals ) {
+      $result .= $chars[ int(($v - $min) / $range) ];
+   }
+   return $result;
 }
 
 # shorten {{{3
@@ -8655,6 +8797,29 @@ sub get_status_info {
             $show_variables{$cxn} = $res;
          }
          @{$vars}{keys %$res} = values %$res;
+
+         # Create sparklines for QPS and Threads_running. As a consequence of
+         # this, we get QPS for free. TODO: remove QPS computation from
+         # elsewhere.
+         if ( my $pre = $vars{$cxn}->{$clock - 1} ) {
+            my @prev_qps = ($pre->{SPARK_store_qps} || '') =~ m/(\S+)/g;
+            my @prev_run = ($pre->{SPARK_store_run} || '') =~ m/(\S+)/g;
+
+            # Find out the values; throw away if too many; sparkify; store.
+            my $this_qps = ($vars->{Questions} - $pre->{Questions}) /
+                           ($vars->{Uptime_hires} - $pre->{Uptime_hires});
+            push @prev_qps, $this_qps;
+            shift @prev_qps if @prev_qps > $config{spark}->{val};
+            my $qps_spark = sparkify(@prev_qps);
+            $vars->{SPARK_qps} = $qps_spark;
+            $vars->{SPARK_store_qps} = join(' ', @prev_qps);
+            my $this_run = $vars->{Threads_running};
+            push @prev_run, $this_run;
+            shift @prev_run if @prev_run > $config{spark}->{val};
+            my $run_spark = sparkify(@prev_run);
+            $vars->{SPARK_run} = $run_spark;
+            $vars->{SPARK_store_run} = join(' ', @prev_run);
+         }
       }
    }
 }
@@ -8789,6 +8954,22 @@ sub extract_values {
       }
    }
    return $result;
+}
+
+# get_processlist_stats {{{3
+# Inserts special counters as though they are SHOW STATUS counters.
+sub get_processlist_stats {
+   my @cxns = @_;
+   if ( !$info_gotten{processlist_stats}++ ) {
+      foreach my $cxn ( @cxns ) {
+         $vars{$cxn}->{$clock} ||= {};
+         my $vars = $vars{$cxn}->{$clock};
+         $vars->{cxn} = $cxn;
+         my $stmt = do_stmt($cxn, 'PROCESSLIST_STATISTICS') or next;
+         my $res = $stmt->fetchall_arrayref({})->[0];
+         @{$vars}{ keys %$res } = values %$res;
+      }
+   }
 }
 
 # get_full_processlist {{{3
@@ -8987,6 +9168,7 @@ sub get_master_logs {
 }
 
 # get_master_slave_status {{{3
+# Inserts special counters as though they are SHOW STATUS counters.
 sub get_master_slave_status {
    my @cxns = @_;
    if ( !$info_gotten{replication_status}++ ) {
@@ -9214,6 +9396,13 @@ switch to the mode, press the key listed in front of its heading in the
 following list:
 
 =over
+
+=item A: Health Dashboard
+
+This mode displays a single table with one row per monitored server. The
+columns show essential overview information about the server's health, and
+coloration rules show whether replication is running or if there are any very
+long-running queries or excessive replication delay.
 
 =item B: InnoDB Buffers
 
@@ -9978,6 +10167,11 @@ Disables fetching SHOW INNODB STATUS, in case your server(s) do not have InnoDB
 enabled and you don't want innotop to try to fetch it.  This can also be useful
 when you don't have the SUPER privilege, required to run SHOW INNODB STATUS.
 
+=item spark
+
+Specifies how wide a spark chart is. There are two ASCII spark charts in A
+mode, showing QPS and User_threads_running.
+
 =item status_inc
 
 Whether to show absolute or incremental values for status variables.
@@ -10253,6 +10447,11 @@ L<"STATUS_VARIABLES">.
 
 Displays various data about InnoDB's last foreign key error.  Data source:
 L<"STATUS_VARIABLES">.
+
+=item health_dashboard
+
+Displays an overall summary of servers, one server per line, for monitoring.
+Data source: L<"STATUS_VARIABLES">, L<"MASTER_SLAVE">, L<"PROCESSLIST_STATS">.
 
 =item index_statistics
 
@@ -11199,6 +11398,10 @@ STATUS.
 This data is from the TRANSACTIONS section of SHOW INNODB STATUS and is nested
 two levels deep.
 
+=item MASTER_SLAVE
+
+This data is from the combination of SHOW MASTER STATUS and SHOW SLAVE STATUS.
+
 =item OPEN_TABLES
 
 This data is from SHOW OPEN TABLES.
@@ -11206,6 +11409,12 @@ This data is from SHOW OPEN TABLES.
 =item PROCESSLIST
 
 This data is from SHOW FULL PROCESSLIST.
+
+=item PROCESSLIST_STATS
+
+This data is from INFORMATION_SCHEMA.PROCESSLIST and computes the maximum time
+a user query has been running, and how many user queries are running. A "user
+query" excludes replication threads.
 
 =item OS_WAIT_ARRAY
 
