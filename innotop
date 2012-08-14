@@ -2105,6 +2105,7 @@ my %trans_funcs = (
    commify      => \&commify,
    dulint_to_int => \&dulint_to_int,
    set_precision => \&set_precision,
+   fuzzy_time    => \&fuzzy_time,
 );
 
 # Table definitions {{{3
@@ -2922,16 +2923,16 @@ my %tbl_meta = (
       cust => {},
       cols => {
          cxn                => { src => 'cxn' },
-         uptime             => { src => 'Uptime', trans => [qw(secs_to_time)] },
+         uptime             => { src => 'Uptime', trans => [qw(fuzzy_time)] },
          qps                => { src => 'Questions/Uptime_hires', dec => 1, trans => [qw(shorten)] },
          spark_qps          => { src => 'SPARK_qps' },
          run                => { src => 'user_threads_running' },
          spark_run          => { src => 'SPARK_run' },
-         max_query_time     => { src => 'max_query_time', trans => [qw(secs_to_time)] },
+         max_query_time     => { src => 'max_query_time', trans => [qw(fuzzy_time)] },
          connections        => { src => 'Threads_connected' },
          'open'             => { src => 'Open_tables' },
          slave_running      => { src => 'Slave_ok' },
-         time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(secs_to_time)] },
+         time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(fuzzy_time)] },
          pending_ios        => { src =>
          'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+'
          . 'Innodb_data_pending_writes+Innodb_os_log_pending_fsyncs+'
@@ -6669,6 +6670,18 @@ sub draw_screen {
                : substr($_, 0, $this_term_size[0]);
          } @$display_lines[0..$max_lines - 1]);
    }
+}
+
+# fuzzy_time {{{3
+sub fuzzy_time {
+   my ( $secs ) = @_;
+   return '' unless $secs;
+   return $secs < 180      ? "${secs}s"
+        : $secs < 3600     ? sprintf("%dm", $secs / 60)
+        : $secs < 3600 * 3 ? sprintf("%dh%dm", $secs / 3600, ($secs % 3600) / 60)
+        : $secs < 86400    ? sprintf("%dh", $secs / 3600)
+        : $secs < 86400* 3 ? sprintf("%dd%dh", $secs / 86400, ($secs % 86400) / 3600)
+        :                    sprintf("%dd", $secs / 86400);
 }
 
 # secs_to_time {{{3
@@ -10939,6 +10952,10 @@ Adds commas to large numbers every three decimal places.
 Accepts two unsigned integers and converts them into a single longlong.  This is
 useful for certain operations with InnoDB, which uses two integers as
 transaction identifiers, for example.
+
+=item fuzzy_time
+
+Converts a number of seconds into a friendly, readable value like "1h35m".
 
 =item no_ctrl_char
 
