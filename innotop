@@ -2930,8 +2930,8 @@ my %tbl_meta = (
          max_query_time     => { src => 'max_query_time', trans => [qw(secs_to_time)] },
          connections        => { src => 'Threads_connected' },
          'open'             => { src => 'Open_tables' },
-         slave_running      => { src => 'Slave_running' },
-         time_behind_master => { src => 'time_behind_master', hdr => 'ReplLag' , trans => [qw(secs_to_time)] },
+         slave_running      => { src => 'Slave_ok' },
+         time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(secs_to_time)] },
          pending_ios        => { src =>
          'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+'
          . 'Innodb_data_pending_writes+Innodb_os_log_pending_fsyncs+'
@@ -2945,7 +2945,7 @@ my %tbl_meta = (
       sort_dir  => '1',
       innodb    => '',
       colors   => [
-         { col => 'slave_running',      op => 'ne', arg => 'ON',    color => 'black on_red' },
+         { col => 'slave_running',      op => 'ne', arg => 'Yes',   color => 'black on_red' },
          { col => 'pending_ios',        op => '>',  arg => '10',    color => 'black on_yellow' },
          { col => 'time_behind_master', op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'time_behind_master', op => '>',  arg => 600,     color => 'yellow' },
@@ -4900,6 +4900,7 @@ sub display_A {
    my @cxns  = get_connections();
    get_processlist_stats(@cxns);
    get_status_info(@cxns);
+   get_master_slave_status(@cxns);
    my @visible = get_visible_tables();
    my %wanted  = map { $_ => 1 } @visible;
    my @health_dashboard;
@@ -4912,6 +4913,7 @@ sub display_A {
       my $set  = $vars{$cxn}->{$clock};
       my $pre  = $vars{$cxn}->{$clock-1} || $set;
       my $hash = extract_values($set, $set, $pre, 'health_dashboard');
+      # Make QPS show QPS now, not overall.
       if ( exists $vars{$cxn}->{$clock - 1} ) {
          my $inc   = inc(0, $cxn);
          my $hash2 = extract_values($inc, $set, $pre, 'health_dashboard');
@@ -8803,7 +8805,8 @@ sub get_status_info {
          # Create sparklines for QPS and Threads_running. As a consequence of
          # this, we get QPS for free. TODO: remove QPS computation from
          # elsewhere.
-         if ( my $pre = $vars{$cxn}->{$clock - 1} ) {
+         my $pre = $vars{$cxn}->{$clock - 1};
+         if ( $pre && $pre->{Uptime_hires} ) {
             my @prev_qps = ($pre->{SPARK_store_qps} || '') =~ m/(\S+)/g;
             my @prev_run = ($pre->{SPARK_store_run} || '') =~ m/(\S+)/g;
 
@@ -8970,6 +8973,7 @@ sub get_processlist_stats {
          my $stmt = do_stmt($cxn, 'PROCESSLIST_STATISTICS') or next;
          my $res = $stmt->fetchall_arrayref({})->[0];
          @{$vars}{ keys %$res } = values %$res;
+         $vars->{Uptime_hires} ||= get_uptime($cxn);
       }
    }
 }
@@ -9186,6 +9190,9 @@ sub get_master_slave_status {
          $res = $stmt->fetchall_arrayref({})->[0];
          @{$vars}{ keys %$res } = values %$res;
          $vars->{Uptime_hires} ||= get_uptime($cxn);
+         $vars->{Slave_ok} =
+            ($res->{slave_sql_running} || 'Yes' eq 'Yes')
+            && ($res->{slave_io_running} || 'Yes' eq 'Yes') ? 'Yes' : 'No';
       }
    }
 }
