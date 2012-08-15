@@ -1624,6 +1624,7 @@ my %columns = (
    log_ios_done                => { hdr => 'IO Done',             num => 1, label => 'Log I/Os done' },
    log_ios_s                   => { hdr => 'IO/Sec',              num => 1, label => 'Average log I/Os per sec' },
    log_seq_no                  => { hdr => 'Sequence No.',        num => 0, label => 'Log sequence number' },
+   longest_sql                 => { hdr => 'SQL',                 num => 0, label => 'Longest-running SQL statement' },
    main_thread_id              => { hdr => 'Main Thread ID',      num => 1, label => 'Main thread ID' },
    main_thread_proc_no         => { hdr => 'Main Thread Proc',    num => 1, label => 'Main thread process number' },
    main_thread_state           => { hdr => 'Main Thread State',   num => 0, label => 'Main thread state' },
@@ -2100,6 +2101,7 @@ my %agg_funcs = (
 my %trans_funcs = (
    shorten      => \&shorten,
    secs_to_time => \&secs_to_time,
+   distill      => \&distill,
    no_ctrl_char => \&no_ctrl_char,
    percent      => \&percent,
    commify      => \&commify,
@@ -2928,19 +2930,20 @@ my %tbl_meta = (
          spark_qps          => { src => 'SPARK_qps' },
          run                => { src => 'user_threads_running' },
          spark_run          => { src => 'SPARK_run' },
-         max_query_time     => { src => 'max_query_time', trans => [qw(fuzzy_time)] },
+         max_query_time     => { src => 'Max_query_time', trans => [qw(fuzzy_time)] },
          connections        => { src => 'Threads_connected' },
          'open'             => { src => 'Open_tables' },
          slave_running      => { src => 'Slave_ok' },
          time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(fuzzy_time)] },
          pending_ios        => { src =>
-         'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+'
-         . 'Innodb_data_pending_writes+Innodb_os_log_pending_fsyncs+'
-         . 'Innodb_os_log_pending_writes' },
+            'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+'
+            . 'Innodb_data_pending_writes+Innodb_os_log_pending_fsyncs+'
+            . 'Innodb_os_log_pending_writes' },
+         longest_sql        => { src => 'Longest_sql', trans => [qw(distill)] },
       },
       visible   => [qw(cxn uptime spark_qps qps max_query_time spark_run run
                        connections open slave_running
-                       time_behind_master pending_ios)],
+                       time_behind_master pending_ios longest_sql)],
       filters   => [],
       sort_cols => 'cxn',
       sort_dir  => '1',
@@ -4399,23 +4402,11 @@ my %stmt_maker_for = (
       $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
       return $sth;
    },
-   PROCESSLIST_STATISTICS => sub {
+   PROCESSLIST_NO_IS => sub {
       my ( $dbh ) = @_;
-      my $sth;
-      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
-         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.PROCESSLIST LIKE 'TIME_MS'});
-         if ( @$cols ) { # The TIME_MS colum exists
-            # We subtract 1 from threads_running because we don't want to
-            # count our own query.
-            $sth = $dbh->prepare(
-               q{SELECT /*innotop*/ }
-               . q{COALESCE(MAX(TIME), 0) AS Max_query_time, COUNT(*) - 1 AS User_threads_running }
-               . q{FROM INFORMATION_SCHEMA.PROCESSLIST }
-               . q{WHERE USER <> 'system user' AND COMMAND = 'Query' }
-            );
-         }
-      };
-      $sth ||= $dbh->prepare('SELECT /*innotop*/ 0 AS User_threads_running, 0 AS Max_query_time');
+      # We do not use INFORMATION_SCHEMA table because it doesn't show slave
+      # SQL statements. http://bugs.mysql.com/66401
+      my $sth = $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
       return $sth;
    },
    TABLE_STATISTICS => sub {
@@ -6676,12 +6667,139 @@ sub draw_screen {
 sub fuzzy_time {
    my ( $secs ) = @_;
    return '' unless $secs;
+   return sprintf('%.2f', $secs) if $secs =~ m/^.\./;
+   $secs =~ s/\..*$//;
    return $secs < 180      ? "${secs}s"
         : $secs < 3600     ? sprintf("%dm", $secs / 60)
         : $secs < 3600 * 3 ? sprintf("%dh%dm", $secs / 3600, ($secs % 3600) / 60)
         : $secs < 86400    ? sprintf("%dh", $secs / 3600)
         : $secs < 86400* 3 ? sprintf("%dd%dh", $secs / 86400, ($secs % 86400) / 3600)
         :                    sprintf("%dd", $secs / 86400);
+}
+
+# distill {{{3
+sub distill {
+   my ( $query ) = @_;
+   return "" unless $query;
+   my $orig_query = $query;
+
+   $query =~ m/\A\s*call\s+(\S+)\(/i && return "CALL $1";
+   $query =~ m/\A\s*use\s+/          && return "USE";
+   $query =~ m/\A\s*UNLOCK TABLES/i  && return "UNLOCK";
+   $query =~ m/\A\s*xa\s+(\S+)/i     && return "XA_$1";
+
+   # Strip out comments
+   my $olc_re = qr/(?:--|#)[^'"\r\n]*(?=[\r\n]|\Z)/;  # One-line comments
+   my $mlc_re = qr#/\*[^!].*?\*/#sm;                  # But not /*!version */
+   my $vlc_re = qr#/\*.*?[0-9+].*?\*/#sm;             # For SHOW + /*!version */
+   my $vlc_rf = qr#^(SHOW).*?/\*![0-9+].*?\*/#sm;     # Variation for SHOW
+   $query =~ s/$olc_re//go;
+   $query =~ s/$mlc_re//go;
+   if ( $query =~ m/$vlc_rf/i ) { # contains show + version
+      $query =~ s/$vlc_re//go;
+   }
+
+   # Handle SHOW queries
+   if ( $query =~ m/\A\s*SHOW\s+/i ) {
+      $query = uc $query;
+      $query =~ s/\s+(?:GLOBAL|SESSION|FULL|STORAGE|ENGINE)\b/ /g;
+      $query =~ s/\s+COUNT[^)]+\)//g;
+      $query =~ s/\s+(?:FOR|FROM|LIKE|WHERE|LIMIT|IN)\b.+//ms;
+      $query =~ s/\A(SHOW(?:\s+\S+){1,2}).*\Z/$1/s;
+      $query =~ s/\s+/ /g;
+   }
+
+   # Find verbs and tables.
+   my ($verbs, $table);
+
+   # Handle DDL operations (dds)
+   my $tbl_ident = qr/(?:`[^`]+`|\w+)(?:\.(?:`[^`]+`|\w+))?/;
+   my $tbl_regex = qr{
+            \b(?:FROM|JOIN|(?<!KEY\s)UPDATE|INTO(?!\s+TABLE)|INTO\s+TABLE) # Words that precede table names
+            \b\s*
+            \(?                                                            # Optional paren around tables
+            ($tbl_ident
+               (?: (?:\s+ (?:AS\s+)? \w+)?, \s*$tbl_ident )*
+            )
+         }xio;
+   my ( $ddl ) = $query =~ m/^\s*((?:CREATE|ALTER|TRUNCATE|DROP|RENAME))\b/i;
+   if ( $ddl ) {
+      my ( $obj ) = $query =~ m/$ddl.+(DATABASE|TABLE)\b/i;
+      $query =~ s/$obj\s*if\s*exists/$obj/i;
+      $obj = uc $obj if $obj;
+      $verbs = uc($ddl . ($obj ? " $obj" : ''));
+      ($table) = $query =~ m/(?:TABLE|DATABASE)\s+($tbl_ident)(\s+.*)?/i;
+   }
+   else {
+      my $verbs_pat = qr{^SHOW|^FLUSH|^COMMIT|^ROLLBACK|^BEGIN|SELECT|INSERT
+                  |UPDATE|DELETE|REPLACE|^SET|UNION|^START|^LOCK|^LOAD}xi;
+      my @verbs = $query =~ m/\b($verbs_pat)\b/gio;
+      @verbs    = do {
+         my $last = '';
+         grep { my $pass = $_ ne $last; $last = $_; $pass } map { uc } @verbs;
+      };
+
+      if ( ($verbs[0] || '') eq 'SELECT' && @verbs > 1 ) {
+         # False-positive verbs after SELECT
+         my $union = grep { $_ eq 'UNION' } @verbs;
+         @verbs    = $union ? qw(SELECT UNION) : qw(SELECT);
+      }
+
+      $verbs = join(q{ }, @verbs);
+   }
+
+   if ( $verbs && $verbs =~ m/^SHOW/ ) {
+      my %alias_for = qw(
+         SCHEMA   DATABASE
+         KEYS     INDEX
+         INDEXES  INDEX
+      );
+      map { $verbs =~ s/$_/$alias_for{$_}/ } keys %alias_for;
+      $query = $verbs;
+   }
+   else {
+      my @tables;
+      $query =~ s/ (?:LOW_PRIORITY|IGNORE|STRAIGHT_JOIN)//ig;
+      if ( $query =~ /^\s*LOCK\s+TABLES/i ) {
+         $query =~ s/^(\s*LOCK\s+TABLES\s+)//i;
+         $query =~ s/\s+(?:READ|WRITE|LOCAL)+\s*//gi;
+         $query = "FROM $query";
+      }
+      $query =~ s/\\["']//g;                # quoted strings
+      $query =~ s/".*?"/?/sg;               # quoted strings
+      $query =~ s/'.*?'/?/sg;               # quoted strings
+
+      foreach my $tbls ( $query =~ m/$tbl_regex/gio ) {
+         next if $tbls =~ m/\ASELECT\b/i;
+         foreach my $tbl ( split(',', $tbls) ) {
+            $tbl =~ s/\s*($tbl_ident)(\s+.*)?/$1/gio;
+            if ( $tbl !~ m/[a-zA-Z]/ ) {
+               # Skip suspicious table name
+               next;
+            }
+            push @tables, $tbl;
+         }
+      }
+
+      # If we have a bunch of tables like db1.tbl1 db1.tbl2, convert to
+      # db1.tbl1 -.tbl2 etc. Also remove repeated tables, and strip `quotes`.
+      $query = $verbs;
+      my $prev = '';
+      foreach my $t ( @tables, $table ) {
+         next unless $t;
+         $t =~ s/`//g;
+         next if $t eq $prev;
+         my ($prefix, undef) = split(/\./, $prev);
+         $prev = $t;
+         if ( $prefix ) {
+            $t =~ s/^$prefix\./-./;
+         }
+         $query .= " " . $t;
+      }
+   } 
+
+   # die $orig_query if $query eq 'LOCK lock';
+   return $query;
 }
 
 # secs_to_time {{{3
@@ -8975,18 +9093,41 @@ sub extract_values {
 }
 
 # get_processlist_stats {{{3
-# Inserts special counters as though they are SHOW STATUS counters.
+# Inserts special values as though they are SHOW STATUS counters.
 sub get_processlist_stats {
    my @cxns = @_;
    if ( !$info_gotten{processlist_stats}++ ) {
       foreach my $cxn ( @cxns ) {
+         my $max_query_time = 0;
+         my ($user_threads, $longest_sql, $slave_sql);
          $vars{$cxn}->{$clock} ||= {};
          my $vars = $vars{$cxn}->{$clock};
          $vars->{cxn} = $cxn;
-         my $stmt = do_stmt($cxn, 'PROCESSLIST_STATISTICS') or next;
-         my $res = $stmt->fetchall_arrayref({})->[0];
-         @{$vars}{ keys %$res } = values %$res;
-         $vars->{Uptime_hires} ||= get_uptime($cxn);
+         my $stmt = do_stmt($cxn, 'PROCESSLIST_NO_IS') or next;
+         my $arr = $stmt->fetchall_arrayref({});
+         foreach my $thread ( @$arr ) {
+            # Ignore non-user threads, but remember the SQL in case there is
+            # no user SQL.  Ignore sleeping threads and SHOW PROCESSLIST
+            # threads.
+            if ( ($thread->{user} || '') =~ m/system user/ ) {
+               if ( $thread->{info} && $thread->{time} ) {
+                  $slave_sql = $thread->{info};
+               }
+               next;
+            }
+            next unless ($thread->{command} || '') eq 'Query';
+            next unless $thread->{state} && $thread->{info};
+            next if     $thread->{info} =~ m#/\*innotop#;
+            $user_threads++;
+            if ( $thread->{time} > $max_query_time ) {
+               $max_query_time = $thread->{time};
+               $longest_sql    = $thread->{info};
+            }
+         }
+         $vars->{Max_query_time}       = $max_query_time;
+         $vars->{User_threads_running} = $user_threads;
+         $vars->{Longest_sql}          = $longest_sql || $slave_sql || '';
+         $vars->{Uptime_hires}       ||= get_uptime($cxn);
       }
    }
 }
@@ -10946,6 +11087,10 @@ are defined:
 =item commify
 
 Adds commas to large numbers every three decimal places.
+
+=item distill
+
+Distills SQL into verb-noun-noun format for quick comprehension.
 
 =item dulint_to_int
 
