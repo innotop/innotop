@@ -2928,7 +2928,7 @@ my %tbl_meta = (
          uptime             => { src => 'Uptime', trans => [qw(fuzzy_time)] },
          qps                => { src => 'Questions/Uptime_hires', dec => 1, trans => [qw(shorten)] },
          spark_qps          => { src => 'SPARK_qps' },
-         run                => { src => 'user_threads_running' },
+         run                => { src => 'User_threads_running' },
          spark_run          => { src => 'SPARK_run' },
          max_query_time     => { src => 'Max_query_time', trans => [qw(fuzzy_time)] },
          connections        => { src => 'Threads_connected' },
@@ -8942,7 +8942,7 @@ sub get_status_info {
             my @prev_run = ($pre->{SPARK_store_run} || '') =~ m/(\S+)/g;
 
             # Find out the values; throw away if too many; sparkify; store.
-            my $this_qps = ($vars->{Questions} - $pre->{Questions}) /
+            my $this_qps = (($vars->{Questions} || 0) - ($pre->{Questions} || 0))/
                            ($vars->{Uptime_hires} - $pre->{Uptime_hires});
             push @prev_qps, $this_qps;
             shift @prev_qps if @prev_qps > $config{spark}->{val};
