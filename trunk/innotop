@@ -1696,7 +1696,6 @@ my %columns = (
    pct                         => { hdr => 'Pct',                 num => 1, label => 'Percentage' },
    pending_chkp_writes         => { hdr => 'Chkpt Writes',        num => 1, label => 'Pending log checkpoint writes' },
    pending_log_writes          => { hdr => 'Log Writes',          num => 1, label => 'Pending log writes' },
-   pending_ios                 => { hdr => 'PendIO',              num => 1, label => 'Pending InnoDB I/Os' },
    port                        => { hdr => 'Port',                num => 1, label => 'Client port number', },
    possible_keys               => { hdr => 'Poss. Keys',          num => 0, label => 'Possible keys' },
    proc_no                     => { hdr => 'Proc',                num => 1, label => 'Process number' },
@@ -2935,22 +2934,16 @@ my %tbl_meta = (
          'open'             => { src => 'Open_tables' },
          slave_running      => { src => 'Slave_ok' },
          time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(fuzzy_time)] },
-         pending_ios        => { src =>
-            'Innodb_data_pending_fsyncs+Innodb_data_pending_reads+'
-            . 'Innodb_data_pending_writes+Innodb_os_log_pending_fsyncs+'
-            . 'Innodb_os_log_pending_writes' },
          longest_sql        => { src => 'Longest_sql', trans => [qw(distill)] },
       },
       visible   => [qw(cxn uptime spark_qps qps max_query_time spark_run run
-                       connections open slave_running
-                       time_behind_master pending_ios longest_sql)],
+                       connections open slave_running time_behind_master longest_sql)],
       filters   => [],
       sort_cols => 'cxn',
       sort_dir  => '1',
       innodb    => '',
       colors   => [
          { col => 'slave_running',      op => 'ne', arg => 'Yes',   color => 'black on_red' },
-         { col => 'pending_ios',        op => '>',  arg => '10',    color => 'black on_yellow' },
          { col => 'time_behind_master', op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'time_behind_master', op => '>',  arg => 600,     color => 'yellow' },
          { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
@@ -9345,8 +9338,8 @@ sub get_master_slave_status {
          @{$vars}{ keys %$res } = values %$res;
          $vars->{Uptime_hires} ||= get_uptime($cxn);
          $vars->{Slave_ok} =
-            ($res->{slave_sql_running} || 'Yes' eq 'Yes')
-            && ($res->{slave_io_running} || 'Yes' eq 'Yes') ? 'Yes' : 'No';
+            (($res->{slave_sql_running} || 'Yes') eq 'Yes'
+            && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
       }
    }
 }
