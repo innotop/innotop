@@ -2943,7 +2943,7 @@ my %tbl_meta = (
       sort_dir  => '1',
       innodb    => '',
       colors   => [
-         { col => 'slave_running',      op => 'ne', arg => 'Yes',   color => 'black on_red' },
+         { col => 'slave_running',      op => 'eq', arg => 'No',    color => 'black on_red' },
          { col => 'time_behind_master', op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'time_behind_master', op => '>',  arg => 600,     color => 'yellow' },
          { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
@@ -3968,6 +3968,7 @@ my $nonfatal_errs = join('|',
    'Cannot call SHOW INNODB STATUS',
    'Access denied',
    'AutoCommit',
+   'Lost connection to MySQL server',
 );
 
 if ( !$opts{n} ) {
@@ -9329,17 +9330,23 @@ sub get_master_slave_status {
          $vars{$cxn}->{$clock} ||= {};
          my $vars = $vars{$cxn}->{$clock};
          $vars->{cxn} = $cxn;
+         $vars->{Uptime_hires} ||= get_uptime($cxn);
 
          my $stmt = do_stmt($cxn, 'SHOW_MASTER_STATUS') or next;
          my $res = $stmt->fetchall_arrayref({})->[0];
          @{$vars}{ keys %$res } = values %$res;
          $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS') or next;
-         $res = $stmt->fetchall_arrayref({})->[0];
-         @{$vars}{ keys %$res } = values %$res;
-         $vars->{Uptime_hires} ||= get_uptime($cxn);
-         $vars->{Slave_ok} =
-            (($res->{slave_sql_running} || 'Yes') eq 'Yes'
-            && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
+         $res = $stmt->fetchall_arrayref({});
+         if ( $res && @$res ) {
+            $res = $res->[0];
+            @{$vars}{ keys %$res } = values %$res;
+            $vars->{Slave_ok} =
+               (($res->{slave_sql_running} || 'Yes') eq 'Yes'
+               && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
+         }
+         else {
+            $vars->{Slave_ok} = 'Off';
+         }
       }
    }
 }
