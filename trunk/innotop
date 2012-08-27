@@ -6716,7 +6716,7 @@ sub distill {
                (?: (?:\s+ (?:AS\s+)? \w+)?, \s*$tbl_ident )*
             )
          }xio;
-   my ( $ddl ) = $query =~ m/^\s*((?:CREATE|ALTER|TRUNCATE|DROP|RENAME))\b/i;
+   my ( $ddl ) = $query =~ m/^\s*((?:CREATE|ALTER|TRUNCATE|DROP|RENAME|CHECK|REPAIR))\b/i;
    if ( $ddl ) {
       my ( $obj ) = $query =~ m/$ddl.+(DATABASE|TABLE)\b/i;
       $query =~ s/$obj\s*if\s*exists/$obj/i;
