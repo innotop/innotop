@@ -2944,10 +2944,9 @@ my %tbl_meta = (
       innodb    => '',
       colors   => [
          { col => 'slave_running',      op => 'eq', arg => 'No',    color => 'black on_red' },
-         { col => 'time_behind_master', op => '>',  arg => 30 * 60, color => 'red' },
-         { col => 'time_behind_master', op => '>',  arg => 600,     color => 'yellow' },
          { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'max_query_time',     op => '>',  arg => 600,     color => 'yellow' },
+         { col => 'time_behind_master', op => '>',  arg => 3600,    color => 'cyan' },
       ],
       group_by  => [],
       aggregate => 0,
