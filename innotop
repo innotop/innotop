@@ -6888,7 +6888,7 @@ sub create_statusbar {
       my $inc  = inc(0, $cxns[0]);
 
       # Format server uptime human-readably, calculate QPS...
-      my $uptime = secs_to_time( $vars->{Uptime_hires} );
+      my $uptime = fuzzy_time( $vars->{Uptime_hires} );
       my $qps    = ($inc->{Questions}||0) / ($inc->{Uptime_hires}||1);
       my $ibinfo = '';
 
@@ -7439,6 +7439,14 @@ sub compile_expr {
 # This is a subroutine because it's called from a key to quit the program.
 sub finish {
    save_config();
+   foreach my $dbh ( map { $_->{dbh} } values %dbhs ) {
+      eval {
+         $dbh->disconnect;
+      };
+      if ( $EVAL_ERROR ) {
+         print $EVAL_ERROR;
+      }
+   }
    ReadMode('normal') unless $opts{n};
    print "\n";
    exit(0);
