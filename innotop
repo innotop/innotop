@@ -6164,9 +6164,10 @@ sub set_to_tbl {
    my ( $rows, $tbl ) = @_;
    my $meta = $tbl_meta{$tbl} or die "No such table $tbl in tbl_meta";
 
-   # don't show cxn if there's only one connection being displayed
+   # don't show / hide cxn if there's only one connection being displayed
    my (@visible, @group_by);
-   if (scalar @{$modes{$config{mode}->{val}}->{connections}} <= 1) {
+   my $num_cxn = scalar get_connections();
+   if ($num_cxn <= 1) {
       map { push @visible, $_ if $_ !~ /^cxn$/ } @{$meta->{visible}};
       $meta->{visible} = \@visible;
       map { push @group_by, $_ if $_ !~ /^cxn$/ } @{$meta->{group_by}};
@@ -7075,6 +7076,18 @@ sub get_connections {
    if ( $modes{$mode}->{one_connection} ) {
       @connections = @connections ? $connections[0] : ();
    }
+   # If the connections are the same as a server group, we set the mode's
+   # group to that group.
+   if ( ! $modes{$mode}->{server_group} ) {
+      my $maybe_group = join(',', sort @connections);
+      foreach my $g ( keys %server_groups ) {
+         my $group_conns = join(',', sort @{$server_groups{$g}});
+         if ( $maybe_group eq $group_conns ) {
+            $modes{$mode}->{server_group} = $g;
+            last;
+         }
+      }
+   }
    return unique(@connections);
 }
 
@@ -7103,7 +7116,7 @@ sub choose_connections {
    my $choices = prompt_list("Choose connections or a group for $mode mode",
       undef, sub { return keys %$meta }, $meta);
 
-   my @choices = unique(grep { $_ } split(/\s+/, $choices));
+   my @choices = unique(grep { $_ } $choices =~ m/(\S+)/g);
    if ( @choices ) {
       if ( $choices[0] =~ s/^#// && exists $server_groups{$choices[0]} ) {
          $modes{$mode}->{server_group} = $choices[0];
@@ -8640,7 +8653,7 @@ sub choose_filters {
       }
    );
 
-   my @choices = unique(split(/\s+/, $val));
+   my @choices = unique($val =~ m/(\S+)/g);
    foreach my $new ( grep { !exists($filters{$_}) } @choices ) {
       my $answer = prompt("There is no filter called '$new'.  Create it?", undef, 'y');
       if ( $answer eq 'y' ) {
@@ -8885,7 +8898,7 @@ sub choose_or_create_connection {
       sub { return @available },
       { map { $_ => $connections{$_}->{dsn} } @available });
 
-   my @new = unique(grep { !exists $connections{$_} } split(/\s+/, $new_cxns));
+   my @new = unique(grep { !exists $connections{$_} } $new_cxns =~ m/(\S+)/g);
    foreach my $new ( @new ) {
       my $answer = prompt("There is no connection called '$new'.  Create it?", undef, "y");
       if ( $answer eq 'y' ) {
@@ -8904,6 +8917,7 @@ sub choose_servers {
    my @chosen = choose_or_create_connection($cxns, 'for this mode');
    $modes{$mode}->{connections} = \@chosen;
    $modes{$mode}->{server_group} = ''; # Clear this because it overrides {connections}
+   get_connections(); # This will set the server group if it matches connections just chosen
 }
 
 # display_license {{{3
