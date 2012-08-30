@@ -942,9 +942,12 @@ sub parse_innodb_record_locks {
 sub parse_tx_text {
    my ( $txn, $complete, $debug, $full ) = @_;
 
-   my ( $txn_id, $txn_status, $active_secs, $proc_no, $os_thread_id )
+   my ( $txn_id, $txn_status )
       = $txn
-      =~ m/^(?:---)?TRANSACTION $t, (\D*?)(?: $d sec)?, (?:process no $d, )?OS thread id $d/m;
+      =~ m/^(?:---)?TRANSACTION $t, ([^\n0-9]*[^\s\d])/m;
+   my ( $active_secs, $proc_no, $os_thread_id )
+      = $txn
+      =~ m/^[^\n]*\b$d sec\b/m;
    my ( $thread_status, $thread_decl_inside )
       = $txn
       =~ m/OS thread id \d+(?: ([^,]+?))?(?:, thread declared inside InnoDB $d)?$/m;
@@ -5387,7 +5390,10 @@ sub display_Q {
    # that get pushed to the screen.
    @current_queries = map {
       my %hash;
-      @hash{ qw(cxn id db query secs) } = @{$_}{ qw(cxn mysql_thread_id db info secs) };
+      @hash{ qw(cxn id db query time) } = @{$_}{ qw(cxn mysql_thread_id db info time) };
+      # time is in seconds-to-time format; convert into something
+      # ascii-sortable.
+      $hash{time} = sprintf('%012s', $hash{time} =~ m/^([^.]*)/);
       \%hash;
    } @{$rows_for{processlist}};
 
@@ -5512,7 +5518,7 @@ sub display_T {
    # that get pushed to the screen.
    @current_queries = map {
       my %hash;
-      @hash{ qw(cxn id db query secs) } = @{$_}{ qw(cxn mysql_thread_id db query_text active_secs) };
+      @hash{ qw(cxn id db query time) } = @{$_}{ qw(cxn mysql_thread_id db query_text active_secs) };
       \%hash;
    } @{$rows_for{innodb_transactions}};
 
@@ -8962,7 +8968,6 @@ sub get_status_info {
 sub choose_thread {
    my ( $grep_cond, $prompt ) = @_;
 
-   # Narrow the list to queries that can be explained.
    my %thread_for = map {
       # Eliminate innotop's own threads.
       $_ => $dbhs{$_}->{dbh} ? $dbhs{$_}->{dbh}->{mysql_thread_id} : 0
@@ -8990,7 +8995,7 @@ sub choose_thread {
          my ( $a, $b ) = @_;
          return  $a->{query} && !$b->{query} ? 1
                : $b->{query} && !$a->{query} ? -1
-               : ($a->{time} || 0) <=> ($b->{time} || 0);
+               : ($a->{time} || 0) cmp ($b->{time} || 0);
       };
       my @threads = map { $_->{id} } reverse sort { $sort_func->($a, $b) } @candidates;
 
