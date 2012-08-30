@@ -4544,6 +4544,11 @@ sub main {
          if ( $opts{count} && $clock >= $opts{count} ) {
             finish();
          }
+
+         # RECON: Try to reconnect failed connections, while the user sees no lag.
+         foreach my $cxn ( grep { $dbhs{$_}->{failed} } keys %dbhs ) {
+            connect_to_db($cxn);
+         }
    
          # Wait for a bit.
          if ( $opts{n} ) {
@@ -6874,13 +6879,13 @@ sub create_statusbar {
    else {
       if ( $modes{$mode}->{server_group} ) {
          $cxn = "Servers: " . $modes{$mode}->{server_group};
-         my $err_count = grep { $dbhs{$_} && $dbhs{$_}->{err_count} } @cxns;
+         my $err_count = grep { $dbhs{$_} && $dbhs{$_}->{failed} } @cxns;
          if ( $err_count ) {
             $cxn .= "(" . ( scalar(@cxns) - $err_count ) . "/" . scalar(@cxns) . ")";
          }
       }
       else {
-         $cxn = join(' ', map { ($dbhs{$_}->{err_count} ? '!' : '') . $_ }
+         $cxn = join(' ', map { ($dbhs{$_}->{failed} ? '!' : '') . $_ }
             grep { $dbhs{$_} } @cxns);
       }
    }
@@ -7139,9 +7144,8 @@ sub do_stmt {
 
    # Test if the cxn should not even be tried
    return undef if $dbhs{$cxn}
-      && $dbhs{$cxn}->{err_count} 
-      && ( !$dbhs{$cxn}->{dbh} || !$dbhs{$cxn}->{dbh}->{Active} || $dbhs{$cxn}->{mode} eq $config{mode}->{val} )
-      && $dbhs{$cxn}->{wake_up} > $clock;
+      && $dbhs{$cxn}->{failed} 
+      && ( !$dbhs{$cxn}->{dbh} || !$dbhs{$cxn}->{dbh}->{Active} || $dbhs{$cxn}->{mode} eq $config{mode}->{val} );
 
    my $sth;
    my $retries = 1;
@@ -7182,13 +7186,12 @@ sub do_stmt {
    }
 }
 
-# Keeps track of error count, sleep times till retries, etc etc.
-# When there's an error we retry the connection every so often, increasing in
-# Fibonacci series to prevent too much banging on the server.
+# Marks a connection as failed. When we sleep between redraws, we try to
+# reopen.
 sub handle_cxn_error {
    my ( $cxn, $err ) = @_;
    my $meta = $dbhs{$cxn};
-   $meta->{err_count}++;
+   $meta->{failed} = 1;
 
    # This is used so errors that have to do with permissions needed by the current
    # mode will get displayed as long as we're in this mode, but get ignored if the
@@ -7202,12 +7205,8 @@ sub handle_cxn_error {
    }
 
    $meta->{last_err}   = $err;
-   my $sleep_time      = $meta->{this_sleep} + $meta->{prev_sleep};
-   $meta->{prev_sleep} = $meta->{this_sleep};
-   $meta->{this_sleep} = $sleep_time;
-   $meta->{wake_up}    = $clock + $sleep_time;
    if ( $config{show_cxn_errors}->{val} ) {
-      print STDERR "Error at tick $clock $cxn $err" if $config{debug}->{val};
+      print STDERR "DB error: $cxn $err" if $config{debug}->{val};
    }
 }
 
@@ -7220,9 +7219,8 @@ sub do_query {
 
    # Test if the cxn should not even be tried
    return undef if $dbhs{$cxn}
-      && $dbhs{$cxn}->{err_count} 
-      && ( !$dbhs{$cxn}->{dbh} || !$dbhs{$cxn}->{dbh}->{Active} || $dbhs{$cxn}->{mode} eq $config{mode}->{val} )
-      && $dbhs{$cxn}->{wake_up} > $clock;
+      && $dbhs{$cxn}->{failed} 
+      && ( !$dbhs{$cxn}->{dbh} || !$dbhs{$cxn}->{dbh}->{Active} || $dbhs{$cxn}->{mode} eq $config{mode}->{val} );
 
    my $sth;
    my $retries = 1;
@@ -7265,9 +7263,6 @@ sub connect_to_db {
 
    $dbhs{$cxn} ||= {
       stmts      => {},  # bucket for prepared statements.
-      prev_sleep => 0,
-      this_sleep => 1,
-      wake_up    => 0,
       start_time => 0,
       dbh        => undef,
    };
@@ -7275,8 +7270,7 @@ sub connect_to_db {
 
    if ( !$href->{dbh} || ref($href->{dbh}) !~ m/DBI/ || !$href->{dbh}->ping ) {
       my $dbh = get_new_db_connection($cxn);
-      @{$href}{qw(dbh err_count wake_up this_sleep start_time prev_sleep)}
-               = ($dbh, 0, 0, 1, 0, 0);
+      @{$href}{qw(dbh failed start_time stmts)} = ($dbh, 0, 0, {});
 
       # Derive and store the server's start time in hi-res
       my $uptime = $dbh->selectrow_hashref("show status like 'Uptime'")->{value};
@@ -7367,7 +7361,7 @@ sub get_cxn_errors {
    return () unless $config{show_cxn_errors_in_tbl}->{val};
    return
       map  { [ $_ . ': ' . $dbhs{$_}->{last_err}, 'red' ] }
-      grep { $dbhs{$_} && $dbhs{$_}->{err_count} && $dbhs{$_}->{mode} eq $config{mode}->{val} }
+      grep { $dbhs{$_} && $dbhs{$_}->{failed} && $dbhs{$_}->{mode} eq $config{mode}->{val} }
       @cxns;
 }
 
