@@ -1847,7 +1847,7 @@ my %builtin_filters = (
    },
    hide_event => {
       text => <<'      END',
-         return (($set->{state} || '') !~ m/^Daemon/) && (($set->{info} || '') =~ m/\S/);
+         return (($set->{state} || '') !~ m/^Daemon/) || (($set->{info} || '') !~ m/\S/);
       END
       note => 'Removes idle event threads from the list',
       tbls => [qw(processlist)],
@@ -7458,9 +7458,7 @@ sub finish {
       eval {
          $dbh->disconnect;
       };
-      if ( $EVAL_ERROR ) {
-         print $EVAL_ERROR;
-      }
+      # Ignore eval errors, we just don't care
    }
    ReadMode('normal') unless $opts{n};
    print "\n";
