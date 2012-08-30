@@ -12,9 +12,9 @@ Group:     System/Monitoring
 URL:       http://innotop.googlecode.com/
 Buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 Buildarch: noarch
-Source:    http://%name}.googlecode.com/files/%{name}-%{version}.tar.gz
+Source:    http://%{name}.googlecode.com/files/%{name}-%{version}.tar.gz
 %define filelist %{name}-%{version}-filelist
-%{!?maketest: %define: maketest 1}
+%{!?maketest: %define maketest 1}
 
 %description
 MySQL and InnoDB transaction/status monitor.  Like 'top' for MySQL.  Displays
