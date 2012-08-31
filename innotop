@@ -3024,6 +3024,14 @@ my %modes = (
       cust              => {},
       note              => 'Shows health/status dashboard',
       action_for        => {
+         k => {
+            action => sub { kill_query('CONNECTION') },
+            label => "Kill a query's connection",
+         },
+         x => {
+            action => sub { kill_query('QUERY') },
+            label => "Kill a query",
+         },
       },
       display_sub       => \&display_A,
       connections       => [],
@@ -3990,7 +3998,8 @@ my %vars;
 my %info_gotten = (); # Which things have been retrieved for the current clock tick.
 my %show_variables;   # Stores SHOW VARIABLES for each cxn so we don't re-fetch.
 
-# Stores info on currently displayed queries: cxn, connection ID, query text.
+# Stores info on currently displayed queries: cxn, connection ID, query text,
+# user, and host.
 my @current_queries;
 
 my $lines_printed       = 0;
@@ -4721,7 +4730,9 @@ sub kill_query {
       'Select a thread to kill the ' . $q_or_c,
    );
    return unless $info;
-   return unless pause("Kill $info->{id}?") =~ m/y/i;
+   my $distill = distill($info->{query} || '');
+   $distill = " running '$distill'" if $distill;
+   return unless pause("Kill $info->{id} ($info->{user}\@$info->{host})$distill?") =~ m/y/i;
 
    eval {
       do_stmt($info->{cxn}, $q_or_c eq 'QUERY' ? 'KILL_QUERY' : 'KILL_CONNECTION', $info->{id} );
@@ -5397,7 +5408,8 @@ sub display_Q {
    # that get pushed to the screen.
    @current_queries = map {
       my %hash;
-      @hash{ qw(cxn id db query time) } = @{$_}{ qw(cxn mysql_thread_id db info time) };
+      @hash{ qw(cxn id db query time user host) }
+         = @{$_}{ qw(cxn mysql_thread_id db info time user host) };
       # time is in seconds-to-time format; convert into something
       # ascii-sortable.
       $hash{time} = sprintf('%012s', $hash{time} =~ m/^([^.]*)/);
@@ -5525,7 +5537,8 @@ sub display_T {
    # that get pushed to the screen.
    @current_queries = map {
       my %hash;
-      @hash{ qw(cxn id db query time) } = @{$_}{ qw(cxn mysql_thread_id db query_text active_secs) };
+      @hash{ qw(cxn id db query time user host) }
+         = @{$_}{ qw(cxn mysql_thread_id db query_text active_secs user host) };
       \%hash;
    } @{$rows_for{innodb_transactions}};
 
@@ -9114,6 +9127,7 @@ sub extract_values {
 # Inserts special values as though they are SHOW STATUS counters.
 sub get_processlist_stats {
    my @cxns = @_;
+   @current_queries = ();
    if ( !$info_gotten{processlist_stats}++ ) {
       foreach my $cxn ( @cxns ) {
          my $max_query_time = 0;
@@ -9123,6 +9137,7 @@ sub get_processlist_stats {
          $vars->{cxn} = $cxn;
          my $stmt = do_stmt($cxn, 'PROCESSLIST_NO_IS') or next;
          my $arr = $stmt->fetchall_arrayref({});
+         my $cur = undef;
          foreach my $thread ( @$arr ) {
             if ( ($thread->{state} || '') =~ m/lock/i ) {
                $locked++;
@@ -9146,6 +9161,16 @@ sub get_processlist_stats {
                if ( $thread->{state} eq 'Checking table' ) {
                   $longest_sql = 'CHECK TABLE ' . $thread->{info};
                }
+               $cur = {
+                  cxn => $cxn,
+                  id => $thread->{id},
+                  db => $thread->{db},
+                  query => $thread->{info},
+                  time => $thread->{time},
+                  user => $thread->{user},
+                  host => $thread->{host},
+               };
+               $thread->{host} =~ s/:.*$//;
             }
          }
          $vars->{Max_query_time}       = $max_query_time;
@@ -9153,6 +9178,7 @@ sub get_processlist_stats {
          $vars->{Longest_sql}          = $longest_sql || $slave_sql || '';
          $vars->{Locked_count}         = $locked || 0;
          $vars->{Uptime_hires}       ||= get_uptime($cxn);
+         push @current_queries, $cur if $cur;
       }
    }
 }
