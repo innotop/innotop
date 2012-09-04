@@ -2939,7 +2939,7 @@ my %tbl_meta = (
          connections        => { src => 'Threads_connected' },
          locked_count       => { src => 'Locked_count' },
          'open'             => { src => 'Open_tables' },
-         slave_running      => { src => 'Slave_ok' },
+         slave_running      => { src => 'Slave_ok . " " . (Slaves || "")' },
          time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(fuzzy_time)] },
          longest_sql        => { src => 'Longest_sql', trans => [qw(distill)] },
       },
@@ -2952,7 +2952,7 @@ my %tbl_meta = (
       sort_dir  => '1',
       innodb    => '',
       colors   => [
-         { col => 'slave_running',      op => 'eq', arg => 'No',    color => 'black on_red' },
+         { col => 'slave_running',      op => '=~', arg => '^No',   color => 'black on_red' },
          { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'max_query_time',     op => '>',  arg => 600,     color => 'yellow' },
          { col => 'time_behind_master', op => '>',  arg => 3600,    color => 'cyan' },
@@ -9132,7 +9132,7 @@ sub get_processlist_stats {
    if ( !$info_gotten{processlist_stats}++ ) {
       foreach my $cxn ( @cxns ) {
          my $max_query_time = 0;
-         my ($user_threads, $longest_sql, $slave_sql, $locked);
+         my ($user_threads, $slaves, $longest_sql, $slave_sql, $locked);
          $vars{$cxn}->{$clock} ||= {};
          my $vars = $vars{$cxn}->{$clock};
          $vars->{cxn} = $cxn;
@@ -9152,7 +9152,12 @@ sub get_processlist_stats {
                }
                next;
             }
-            next unless ($thread->{command} || '') eq 'Query';
+            next unless $thread->{command};
+            if ( $thread->{command} eq 'Binlog Dump' ) {
+               $slaves++;
+               next;
+            }
+            next unless $thread->{command} eq 'Query';
             next unless $thread->{state} && $thread->{info};
             next if     $thread->{info} =~ m#/\*innotop#;
             $user_threads++;
@@ -9176,6 +9181,7 @@ sub get_processlist_stats {
          }
          $vars->{Max_query_time}       = $max_query_time;
          $vars->{User_threads_running} = $user_threads;
+         $vars->{Slaves}               = $slaves || 0;
          $vars->{Longest_sql}          = $longest_sql || $slave_sql || '';
          $vars->{Locked_count}         = $locked || 0;
          $vars->{Uptime_hires}       ||= get_uptime($cxn);
