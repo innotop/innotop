@@ -4556,7 +4556,7 @@ sub main {
 
          # RECON: Try to reconnect failed connections, while the user sees no lag.
          foreach my $cxn ( grep { $dbhs{$_}->{failed} } keys %dbhs ) {
-            connect_to_db($cxn);
+            eval { connect_to_db($cxn); }; # Ignore errors entirely here.
          }
    
          # Wait for a bit.
