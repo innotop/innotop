@@ -2943,9 +2943,10 @@ my %tbl_meta = (
          time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(fuzzy_time)] },
          longest_sql        => { src => 'Longest_sql', trans => [qw(distill)] },
       },
-      visible   => [qw(cxn uptime spark_qps qps max_query_time spark_run run
-                       connections locked_count open slave_running
-                       time_behind_master longest_sql)],
+      visible   => [qw(cxn uptime max_query_time time_behind_master
+                       connections locked_count qps spark_qps run spark_run
+                       open slave_running
+                       longest_sql )],
       filters   => [],
       sort_cols => 'cxn',
       sort_dir  => '1',
