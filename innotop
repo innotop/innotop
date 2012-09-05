@@ -4733,7 +4733,11 @@ sub kill_query {
    return unless $info;
    my $distill = distill($info->{query} || '');
    $distill = " running '$distill'" if $distill;
-   return unless pause("Kill $info->{id} ($info->{user}\@$info->{host})$distill?") =~ m/y/i;
+   return unless pause("Kill $info->{id} ("
+      . ($info->{user} || '')
+      . '@'
+      . ($info->{host} || '')
+      . ")$distill?") =~ m/y/i;
 
    eval {
       do_stmt($info->{cxn}, $q_or_c eq 'QUERY' ? 'KILL_QUERY' : 'KILL_CONNECTION', $info->{id} );
@@ -5410,7 +5414,7 @@ sub display_Q {
    @current_queries = map {
       my %hash;
       @hash{ qw(cxn id db query time user host) }
-         = @{$_}{ qw(cxn mysql_thread_id db info time user host) };
+         = @{$_}{ qw(cxn mysql_thread_id db info time user hostname) };
       # time is in seconds-to-time format; convert into something
       # ascii-sortable.
       $hash{time} = sprintf('%012s', $hash{time} =~ m/^([^.]*)/);
@@ -5539,7 +5543,7 @@ sub display_T {
    @current_queries = map {
       my %hash;
       @hash{ qw(cxn id db query time user host) }
-         = @{$_}{ qw(cxn mysql_thread_id db query_text active_secs user host) };
+         = @{$_}{ qw(cxn mysql_thread_id db query_text active_secs user hostname) };
       \%hash;
    } @{$rows_for{innodb_transactions}};
 
