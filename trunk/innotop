@@ -4737,7 +4737,7 @@ sub kill_query {
       . ($info->{user} || '')
       . '@'
       . ($info->{host} || '')
-      . ")$distill?") =~ m/y/i;
+      . ")$distill ? ") =~ m/y/i;
 
    eval {
       do_stmt($info->{cxn}, $q_or_c eq 'QUERY' ? 'KILL_QUERY' : 'KILL_CONNECTION', $info->{id} );
