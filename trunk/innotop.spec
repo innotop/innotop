@@ -3,7 +3,7 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.8.1
+Version:   1.9.0
 Release:   0
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Baron Schwartz <baron@percona.com>
@@ -21,7 +21,7 @@ MySQL and InnoDB transaction/status monitor.  Like 'top' for MySQL.  Displays
 queries, InnoDB transactions, lock waits, deadlocks, foreign key errors, open
 tables, replication status, buffer information, row operations, logs, I/O
 operations, load graph, and more.  You can monitor many servers at once with
-innotop.  Supports special features included in Percona Server.
+innotop.
 
 %prep
 %setup

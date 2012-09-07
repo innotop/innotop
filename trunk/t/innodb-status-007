@@ -1,0 +1,192 @@
+*************************** 1. row ***************************
+  Type: InnoDB
+  Name: 
+Status: 
+=====================================
+120906 17:23:04 INNODB MONITOR OUTPUT
+=====================================
+Per second averages calculated from the last 9 seconds
+-----------------
+BACKGROUND THREAD
+-----------------
+srv_master_thread loops: 800176 1_second, 782242 sleeps, 79038 10_second, 75965 background, 75489 flush
+srv_master_thread log flush and writes: 917670
+----------
+SEMAPHORES
+----------
+OS WAIT ARRAY INFO: reservation count 56103364, signal count 517940481
+Mutex spin waits 994672655, rounds 1869427362, OS waits 14115318
+RW-shared spins 93199886, rounds 685475806, OS waits 14831919
+RW-excl spins 81742409, rounds 1711657009, OS waits 24743296
+Spin rounds per wait: 1.88 mutex, 7.35 RW-shared, 20.94 RW-excl
+--------
+FILE I/O
+--------
+I/O thread 0 state: waiting for completed aio requests (insert buffer thread)
+I/O thread 1 state: waiting for completed aio requests (log thread)
+I/O thread 2 state: waiting for completed aio requests (read thread)
+I/O thread 3 state: waiting for completed aio requests (read thread)
+I/O thread 4 state: waiting for completed aio requests (read thread)
+I/O thread 5 state: waiting for completed aio requests (read thread)
+I/O thread 6 state: waiting for completed aio requests (write thread)
+I/O thread 7 state: waiting for completed aio requests (write thread)
+I/O thread 8 state: waiting for completed aio requests (write thread)
+I/O thread 9 state: waiting for completed aio requests (write thread)
+Pending normal aio reads: 0 [0, 0, 0, 0] , aio writes: 0 [0, 0, 0, 0] ,
+ ibuf aio reads: 0, log i/o's: 0, sync i/o's: 0
+Pending flushes (fsync) log: 0; buffer pool: 0
+95996891 OS file reads, 88803331 OS file writes, 27771507 OS fsyncs
+63.22 reads/s, 16384 avg bytes/read, 149.65 writes/s, 145.43 fsyncs/s
+-------------------------------------
+INSERT BUFFER AND ADAPTIVE HASH INDEX
+-------------------------------------
+Ibuf: size 322, free list len 8651, seg size 8974, 7081514 merges
+merged operations:
+ insert 24275379, delete mark 96546177, delete 307702
+discarded operations:
+ insert 296, delete mark 0, delete 0
+Hash table size 25499809, node heap has 60317 buffer(s)
+220514.28 hash searches/s, 8752.58 non-hash searches/s
+---
+LOG
+---
+Log sequence number 39213820967021
+Log flushed up to   39213820967021
+Last checkpoint at  39212863356560
+Max checkpoint age    1303878575
+Checkpoint age target 1263132370
+Modified age          957592878
+Checkpoint age        957610461
+0 pending log writes, 0 pending chkp writes
+24586488 log i/o's done, 143.32 log i/o's/second
+----------------------
+BUFFER POOL AND MEMORY
+----------------------
+Total memory allocated 13237223424; in additional pool allocated 0
+Internal hash tables (constant factor + variable factor)
+    Adaptive hash index 1192236416 	(203998472 + 988237944)
+    Page hash           12750664 (buffer pool 0 only)
+    Dictionary cache    53592451 	(51001072 + 2591379)
+    File system         227432 	(82672 + 144760)
+    Lock system         34681584 	(31875512 + 2806072)
+    Recovery system     0 	(0 + 0)
+Dictionary memory allocated 2591379
+Buffer pool size        786431
+Buffer pool size, bytes 12884885504
+Free buffers            1
+Database pages          725943
+Old database pages      267955
+Modified db pages       63647
+Pending reads 0
+Pending writes: LRU 0, flush list 0, single page 0
+Pages made young 158773793, not young 0
+57.33 youngs/s, 0.00 non-youngs/s
+Pages read 95985174, created 18141794, written 62048751
+63.22 reads/s, 0.44 creates/s, 5.33 writes/s
+Buffer pool hit rate 1000 / 1000, young-making rate 0 / 1000 not 0 / 1000
+Pages read ahead 6.89/s, evicted without access 0.00/s
+LRU len: 725943, unzip_LRU len: 0
+I/O sum[3770]:cur[8], unzip sum[0]:cur[0]
+--------------
+ROW OPERATIONS
+--------------
+0 queries inside InnoDB, 0 queries in queue
+2 read views open inside InnoDB
+---OLDEST VIEW---
+Normal read view
+Read view low limit trx n:o B00554DA
+Read view up limit trx id B0049C63
+Read view low limit trx id B00554DA
+Read view individually stored trx ids:
+Read view trx id B00554D9
+Read view trx id B0049C63
+-----------------
+Main thread process no. 13869, id 140473240184576, state: flushing log
+Number of rows inserted 2725314464, updated 918941044, deleted 412538883, read 112046481021
+67.33 inserts/s, 17.55 updates/s, 1.33 deletes/s, 233188.31 reads/s
+------------------------
+LATEST DETECTED DEADLOCK
+------------------------
+120906  6:03:32
+*** (1) TRANSACTION:
+TRANSACTION AFB88BCF, ACTIVE 9 sec inserting
+mysql tables in use 3, locked 3
+LOCK WAIT 2914 lock struct(s), heap size 293304, 231524 row lock(s), undo log entries 270
+MySQL thread id 384855, query id 79940498 10.8.0.86 robot Sending data
+replace into foo values(1)
+*** (1) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 3367223 page no 10329 n bits 216 index `PRIMARY` of table `foo`.`foo` trx id AFB88BCF lock_mode X locks rec but not gap waiting
+*** (2) TRANSACTION:
+TRANSACTION AFB889B6, ACTIVE 12 sec fetching rows
+mysql tables in use 15, locked 15
+12376 lock struct(s), heap size 1391032, 1264011 row lock(s)
+MySQL thread id 383438, query id 79939954 10.8.0.86 robot Sending data
+replace into foo values(2);
+*** (2) HOLDS THE LOCK(S):
+RECORD LOCKS space id 3367223 page no 10329 n bits 216 index `PRIMARY` of table `foo`.`foo` trx id AFB889B6 lock mode S
+*** (2) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 3367223 page no 7113 n bits 184 index `PRIMARY` of table `foo`.`foo` trx id AFB889B6 lock mode S waiting
+*** WE ROLL BACK TRANSACTION (1)
+------------
+TRANSACTIONS
+------------
+Trx id counter B0055592
+Purge done for trx's n:o < B00554DC undo n:o < 0
+History list length 2496
+LIST OF TRANSACTIONS FOR EACH SESSION:
+---TRANSACTION 0, not started
+MySQL thread id 406416, query id 84817453 10.8.0.14 baron
+show engine innodb status
+---TRANSACTION B0055553, not started
+MySQL thread id 406404, query id 84817397 10.8.0.86 robot
+---TRANSACTION B00519AB, not started
+MySQL thread id 406265, query id 84803117 10.8.0.86 robot
+---TRANSACTION B0053111, not started
+MySQL thread id 405693, query id 84808823 10.8.0.86 robot
+---TRANSACTION B005253C, not started
+MySQL thread id 405583, query id 84806045 10.8.0.86 robot
+---TRANSACTION B005554F, not started
+MySQL thread id 405503, query id 84817393 10.8.0.86 robot
+---TRANSACTION B0051863, not started
+MySQL thread id 405482, query id 84802793 10.8.0.86 robot
+---TRANSACTION B0055199, not started
+MySQL thread id 405448, query id 84816488 10.8.0.86 deadlock
+---TRANSACTION 0, not started
+MySQL thread id 405447, query id 84816485 10.8.0.86 deadlock
+---TRANSACTION 0, not started
+MySQL thread id 405444, query id 84814555 10.8.0.86 sniper
+---TRANSACTION B0055590, not started
+MySQL thread id 401251, query id 84817451 10.8.0.86 robot
+---TRANSACTION AFEFFF54, not started
+MySQL thread id 401249, query id 83485705 10.8.0.86 robot
+---TRANSACTION AFADEC5C, not started
+MySQL thread id 378124, query id 84817362 10.8.0.86 checksum
+---TRANSACTION AFADEC48, not started
+MySQL thread id 378123, query id 84817442 10.8.0.86 checksum
+---TRANSACTION B00310F1, not started
+MySQL thread id 2, query id 84675969 Slave has read all relay log; waiting for the slave I/O thread to update it
+---TRANSACTION B0055559, ACTIVE 0 sec fetching rows
+mysql tables in use 2, locked 0
+MySQL thread id 405451, query id 84817400 10.8.0.86 robot Copying to tmp table
+select foo from bar
+Trx read view will not see trx with id >= B005555A, sees < B0049C63
+---TRANSACTION B0049C63, ACTIVE 354 sec
+mysql tables in use 13, locked 13
+24834 lock struct(s), heap size 2800056, 4093569 row lock(s), undo log entries 63
+MySQL thread id 406073, query id 84772439 10.8.0.86 robot Copying to tmp table on disk
+insert into baz.bat
+TABLE LOCK table `foo`.`foo` trx id B0049C63 lock mode IS
+RECORD LOCKS space id 3005708 page no 41 n bits 208 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock mode S locks rec but not gap
+TABLE LOCK table `foo`.`foo` trx id B0049C63 lock mode IX
+RECORD LOCKS space id 3005708 page no 41 n bits 208 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock mode S
+RECORD LOCKS space id 3005708 page no 43 n bits 208 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock mode S
+TABLE LOCK table `foo`.`foo` trx id B0049C63 lock mode IS
+RECORD LOCKS space id 164 page no 3 n bits 152 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock mode S
+RECORD LOCKS space id 4142440 page no 3 n bits 136 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock_mode X locks rec but not gap
+RECORD LOCKS space id 4142440 page no 3 n bits 136 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock_mode X
+RECORD LOCKS space id 164 page no 3 n bits 152 index `PRIMARY` of table `foo`.`foo` trx id B0049C63 lock mode S locks gap before rec
+TOO MANY LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS
+----------------------------
+END OF INNODB MONITOR OUTPUT
+============================
+
