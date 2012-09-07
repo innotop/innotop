@@ -21,7 +21,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.8.1';
+our $VERSION = '1.9.0';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -944,13 +944,20 @@ sub parse_tx_text {
 
    my ( $txn_id, $txn_status )
       = $txn
-      =~ m/^(?:---)?TRANSACTION $t, ([^\n0-9]*[^\s\d])/m;
-   my ( $active_secs, $proc_no, $os_thread_id )
+      =~ m/^(?:---)?TRANSACTION $t, ([^\n0-9,]*[^\s\d])/m;
+   $txn_status =~ s/,$// if $txn_status;
+   my ( $active_secs)
       = $txn
       =~ m/^[^\n]*\b$d sec\b/m;
+   my ( $proc_no )
+      = $txn
+      =~ m/process no $d/m;
+   my ( $os_thread_id )
+      = $txn
+      =~ m/OS thread id $d/m;
    my ( $thread_status, $thread_decl_inside )
       = $txn
-      =~ m/OS thread id \d+(?: ([^,]+?))?(?:, thread declared inside InnoDB $d)?$/m;
+      =~ m/(?:OS thread id \d+|\d sec)(?: ([^,]+?))?(?:, thread declared inside InnoDB $d)?$/m;
 
    # Parsing the line that begins 'MySQL thread id' is complicated.  The only
    # thing always in the line is the thread and query id.  See function
@@ -985,6 +992,11 @@ sub parse_tx_text {
                # It's basically impossible to know which is which.
                ( $hostname, $user, $query_status ) = $thread_line
                   =~ m/query id \d+(?: ([A-Za-z]\S+))?(?: $w(?: (.*))?)?$/m;
+               if ( ($hostname || '') eq 'Slave' ) {
+                  $hostname     = '';
+                  $user         = 'system user';
+                  $query_status = "Slave has $query_status";
+               }
             }
             else {
                $user = 'system user';
@@ -1555,6 +1567,15 @@ my %columns = (
    binlog_cache_overflow       => { hdr => 'Binlog Cache',        num => 1, label => 'Transactions too big for binlog cache that went to disk' },
    binlog_do_db                => { hdr => 'Binlog Do DB',        num => 0, label => 'binlog-do-db setting' },
    binlog_ignore_db            => { hdr => 'Binlog Ignore DB',    num => 0, label => 'binlog-ignore-db setting' },
+   blocking_thread             => { hdr => 'BThread',             num => 1, label => 'Blocking thread' },
+   blocking_query              => { hdr => 'Blocking Query',      num => 0, label => 'Blocking query' },
+   blocking_rows_modified      => { hdr => 'BRowsMod',            num => 1, label => 'Blocking number rows modified' },
+   blocking_age                => { hdr => 'BAge',                num => 1, label => 'Blocking age' },
+   blocking_wait_secs          => { hdr => 'BWait',               num => 1, label => 'Blocking wait time' },
+   blocking_user               => { hdr => 'BUser',               num => 0, label => 'Blocking user' },
+   blocking_host               => { hdr => 'BHost',               num => 0, label => 'Blocking host' },
+   blocking_db                 => { hdr => 'BDB',                 num => 0, label => 'Blocking database' },
+   blocking_status             => { hdr => 'BStatus',             num => 0, label => 'Blocking thread status' },
    bps_in                      => { hdr => 'BpsIn',               num => 1, label => 'Bytes per second received by the server', },
    bps_out                     => { hdr => 'BpsOut',              num => 1, label => 'Bytes per second sent by the server', },
    buf_free                    => { hdr => 'Free Bufs',           num => 1, label => 'Buffers free in the buffer pool' },
@@ -1619,6 +1640,7 @@ my %columns = (
    locked_count                => { hdr => 'Lock',                num => 1, label => 'Number of locked threads' },
    lock_cfile_name             => { hdr => 'Crtd File',           num => 0, label => 'Filename where lock created' },
    lock_cline                  => { hdr => 'Crtd Line',           num => 1, label => 'Line where lock created' },
+   lock_info                   => { hdr => 'Lock Info',           num => 0, label => 'Lock information' },
    lock_mem_addr               => { hdr => 'Addr',                num => 0, label => 'The lock memory address' },
    lock_mode                   => { hdr => 'Mode',                num => 0, label => 'The lock mode' },
    lock_structs                => { hdr => 'LStrcts',             num => 1, label => 'Number of lock structs' },
@@ -1792,6 +1814,14 @@ my %columns = (
    waited_at_line              => { hdr => 'Line',                num => 1, label => 'Line at which thread waits' },
    waiters_flag                => { hdr => 'Waiters',             num => 1, label => 'Waiters Flag' },
    waiting                     => { hdr => 'Waiting',             num => 1, label => 'Whether lock is being waited for' },
+   waiting_thread              => { hdr => 'WThread',             num => 1, label => 'Waiting thread' },
+   waiting_query               => { hdr => 'Waiting Query',       num => 0, label => 'Waiting query' },
+   waiting_rows_modified       => { hdr => 'WRowsMod',            num => 1, label => 'Waiting number rows modified' },
+   waiting_age                 => { hdr => 'WAge',                num => 1, label => 'Waiting age' },
+   waiting_wait_secs           => { hdr => 'WWait',               num => 1, label => 'Waiting wait time' },
+   waiting_user                => { hdr => 'WUser',               num => 0, label => 'Waiting user' },
+   waiting_host                => { hdr => 'WHost',               num => 0, label => 'Waiting host' },
+   waiting_db                  => { hdr => 'WDB',                 num => 0, label => 'Waiting database' },
    when                        => { hdr => 'When',                num => 0, label => 'Time scale' },
    writer_lock_mode            => { hdr => 'Wrtr Lck Mode',       num => 0, label => 'Writer lock mode' },
    writer_thread               => { hdr => 'Wrtr Thread',         num => 1, label => 'Writer thread ID' },
@@ -2412,6 +2442,43 @@ my %tbl_meta = (
       innodb   => 'ib',
       group_by => [],
       aggregate => 0,
+   },
+   innodb_blocked_blocker  => {
+      capt => 'InnoDB Blocked/Blocking',
+      cust => {},
+      cols => {
+        cxn                    => { src => 'cxn' },
+        waiting_thread         => { src => 'waiting_thread' },
+        waiting_query          => { src => 'waiting_query', trans => [qw(distill)] },
+        waiting_rows_modified  => { src => 'waiting_rows_modified' },
+        waiting_age            => { src => 'waiting_age', trans => [qw(fuzzy_time)] },
+        waiting_wait_secs      => { src => 'waiting_wait_secs', trans => [qw(fuzzy_time)] },
+        waiting_user           => { src => 'waiting_user' },
+        waiting_host           => { src => 'waiting_host' },
+        waiting_db             => { src => 'waiting_db' },
+        blocking_thread        => { src => 'blocking_thread' },
+        blocking_query         => { src => 'blocking_query', trans => [qw(distill)] },
+        blocking_rows_modified => { src => 'blocking_rows_modified' },
+        blocking_age           => { src => 'blocking_age', trans => [qw(fuzzy_time)] },
+        blocking_wait_secs     => { src => 'blocking_wait_secs', trans => [qw(fuzzy_time)] },
+        blocking_user          => { src => 'blocking_user' },
+        blocking_host          => { src => 'blocking_host' },
+        blocking_db            => { src => 'blocking_db' },
+        blocking_status        => { src => 'blocking_status' },
+        lock_info              => { src => 'lock_info' },
+      },
+      visible => [ qw(cxn waiting_thread waiting_query waiting_wait_secs
+                      blocking_thread blocking_rows_modified blocking_age blocking_wait_secs
+                      blocking_status blocking_query)],
+      filters => [],
+      sort_cols => 'cxn -waiting_wait_secs',
+      sort_dir => '1',
+      innodb   => 'tx',
+      colors   => [
+      ],
+      group_by => [],
+      aggregate => 0,
+      hide_caption => 1,
    },
    innodb_locks  => {
       capt => 'InnoDB Locks',
@@ -3125,6 +3192,23 @@ my %modes = (
       tables            => [qw(io_threads pending_io file_io_misc log_statistics)],
       visible_tables    => [qw(io_threads pending_io file_io_misc log_statistics)],
    },
+   K => {
+      hdr             => 'InnoDB Lock Waits',
+      cust            => {},
+      note            => 'Shows blocked and blocking transactions',
+      action_for      => {
+         k => {
+            action => sub { kill_query('CONNECTION') },
+            label => "Kill a query's connection",
+         },
+      },
+      display_sub     => \&display_K,
+      connections     => [],
+      server_group    => '',
+      one_connection  => 0,
+      tables            => [qw(innodb_blocked_blocker)],
+      visible_tables    => [qw(innodb_blocked_blocker)],
+   },
    L => {
       hdr             => 'Locks',
       cust            => {},
@@ -3482,6 +3566,10 @@ my %action_for = (
    },
    I => {
       action => sub { switch_mode('I') },
+      label  => '',
+   },
+   K => {
+      action => sub { switch_mode('K') },
       label  => '',
    },
    L => {
@@ -4351,6 +4439,45 @@ my %stmt_maker_for = (
       $sth ||= $dbh->prepare(q{SELECT /*innotop*/ '' FROM DUAL WHERE 1 = 0});
       return $sth;
    },
+   INNODB_BLOCKED_BLOCKER => sub {
+      my ( $dbh ) = @_;
+      # Detect whether the server supports the I_S tables and if not, just select nothing.
+      my $sth;
+      eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
+         my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS});
+         if ( @$cols ) {
+            $sth = $dbh->prepare(q{
+               SELECT /*innotop*/
+                  r.trx_mysql_thread_id                            AS waiting_thread,
+                  r.trx_query                                      AS waiting_query,
+                  r.trx_rows_modified                              AS waiting_rows_modified,
+                  TIMESTAMPDIFF(SECOND, r.trx_started, NOW())      AS waiting_age,
+                  TIMESTAMPDIFF(SECOND, r.trx_wait_started, NOW()) AS waiting_wait_secs,
+                  rp.user                                          AS waiting_user,
+                  rp.host                                          AS waiting_host,
+                  rp.db                                            AS waiting_db,
+                  b.trx_mysql_thread_id                            AS blocking_thread,
+                  b.trx_query                                      AS blocking_query,
+                  b.trx_rows_modified                              AS blocking_rows_modified,
+                  TIMESTAMPDIFF(SECOND, b.trx_started, NOW())      AS blocking_age,
+                  TIMESTAMPDIFF(SECOND, b.trx_wait_started, NOW()) AS blocking_wait_secs,
+                  bp.user                                          AS blocking_user,
+                  bp.host                                          AS blocking_host,
+                  bp.db                                            AS blocking_db,
+                  CONCAT(bp.command, IF(bp.command = 'Sleep', CONCAT(' ', bp.time),   '')) AS blocking_status,
+                  CONCAT(lock_mode, ' ', lock_type, ' ', lock_table, '(', lock_index, ')') AS lock_info
+               FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS w
+                  JOIN INFORMATION_SCHEMA.INNODB_TRX b   ON  b.trx_id  = w.blocking_trx_id
+                  JOIN INFORMATION_SCHEMA.INNODB_TRX r   ON  r.trx_id  = w.requesting_trx_id
+                  JOIN INFORMATION_SCHEMA.INNODB_LOCKS l ON  l.lock_id = w.requested_lock_id
+                  LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST bp ON bp.id = b.trx_mysql_thread_id
+                  LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST rp ON rp.id = r.trx_mysql_thread_id
+            });
+         }
+      };
+      $sth ||= $dbh->prepare(q{SELECT /*innotop*/ '' FROM DUAL WHERE 1 = 0});
+      return $sth;
+   },
    INNODB_STATUS => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '5.0.0' )
@@ -5210,6 +5337,47 @@ sub display_I {
       push @display_lines, get_cxn_errors(@cxns)
          if ( $config{debug}->{val} || !$first_table++ );
    }
+
+   draw_screen(\@display_lines);
+}
+
+# display_K {{{3
+sub display_K {
+   my @display_lines;
+   my @cxns = get_connections();
+
+   my %rows_for = (
+      innodb_blocked_blocker => [],
+   );
+
+   my @visible = get_visible_tables();
+   my %wanted  = map { $_ => 1 } @visible;
+
+   # Get info on locks
+   if ( $wanted{innodb_blocked_blocker} ) {
+      my @rows = get_innodb_blocked_blocker(@cxns);
+      push @{$rows_for{innodb_blocked_blocker}}, map { extract_values($_, $_, $_, 'innodb_blocked_blocker') } @rows;
+   }
+
+   my $first_table = 0;
+   foreach my $tbl ( @visible ) {
+      push @display_lines, '', set_to_tbl($rows_for{$tbl}, $tbl);
+      push @display_lines, get_cxn_errors(@cxns)
+         if ( $config{debug}->{val} || !$first_table++ );
+   }
+
+   # Save queries in global variable for analysis.  The rows in %rows_for have been
+   # filtered, etc as a side effect of set_to_tbl(), so they are the same as the rows
+   # that get pushed to the screen.
+   @current_queries = map {
+      my %hash;
+      @hash{ qw(cxn id user host db query time) }
+         = @{$_}{ qw(cxn blocking_thread blocking_user blocking_host blocking_db blocking_query blocking_age) };
+      # time is in fuzzy-time format; convert into something ascii-sortable.
+      $hash{time} = sprintf('%012s', fuzzy_to_secs($hash{time}));
+      $hash{host} =~ s/:.*$// if $hash{host};
+      \%hash;
+   } @{$rows_for{innodb_blocked_blocker}};
 
    draw_screen(\@display_lines);
 }
@@ -6703,6 +6871,17 @@ sub fuzzy_time {
         : $secs < 86400    ? sprintf("%dh", $secs / 3600)
         : $secs < 86400* 3 ? sprintf("%dd%dh", $secs / 86400, ($secs % 86400) / 3600)
         :                    sprintf("%dd", $secs / 86400);
+}
+
+sub fuzzy_to_secs {
+   my ($t) = @_;
+   return 0 unless $t;
+   my ($num, $suffix) = $t =~ m/(\d+)([a-z])?$/;
+   return $num unless $suffix;
+   return       $suffix eq 's' ? $num            # Seconds
+              : $suffix eq 'm' ? $num * 60       # Minutes
+              : $suffix eq 'h' ? $num * 3600     # Hours
+              :                  $num * 86400;   # Days
 }
 
 # distill {{{3
@@ -9254,6 +9433,18 @@ sub get_table_statistics {
    return @result;
 }
 
+# get_innodb_blocked_blocker {{{3
+sub get_innodb_blocked_blocker {
+   my @cxns = @_;
+   my @result;
+   foreach my $cxn ( @cxns ) {
+      my $stmt = do_stmt($cxn, 'INNODB_BLOCKED_BLOCKER') or next;
+      my $arr  = $stmt->fetchall_arrayref({});
+      push @result, map { $_->{cxn} = $cxn; $_ } @$arr;
+   }
+   return @result;
+}
+
 # get_innodb_status {{{3
 sub get_innodb_status {
    my ( $cxns, $addl_sections ) = @_;
@@ -9719,6 +9910,12 @@ This mode displays the L<"fk_error"> table by default.
 This mode shows InnoDB's I/O statistics, including the I/O threads, pending I/O,
 file I/O miscellaneous, and log statistics.  It displays the L<"io_threads">,
 L<"pending_io">, L<"file_io_misc">, and L<"log_statistics"> tables by default.
+
+=item K: InnoDB Lock Waits
+
+This mode shows information from InnoDB plugin's transaction and locking tables.
+You can use it to find when a transaction is waiting for another, and kill the
+blocking transaction. It displays the L<"innodb_blocked_blocker>" table.
 
 =item L: Locks
 
@@ -10696,6 +10893,10 @@ and table name.  It is the default view in L<"U: User Statistics"> mode,
 and makes it easy to see what tables are hot, how many rows are read from indexes,
 how many changes are made, and how many changes are made to indexes.
 
+=item innodb_blocked_blocker
+
+Displays InnoDB locks and lock waits. Data source: L<"INNODB_BLOCKED_BLOCKER">.
+
 =item innodb_locks
 
 Displays InnoDB locks.  Data source: L<"INNODB_LOCKS">.
@@ -11623,6 +11824,11 @@ section of SHOW INNODB STATUS.  It is nested one level deep.
 
 This data is from the result set returned by EXPLAIN.
 
+=item INNODB_BLOCKED_BLOCKER
+
+This data is from the INFORMATION_SCHEMA tables related to InnoDB locks and
+the processlist.
+
 =item INNODB_TRANSACTIONS
 
 This data is from the TRANSACTIONS section of SHOW INNODB STATUS.
@@ -11651,7 +11857,7 @@ This data is from SHOW FULL PROCESSLIST.
 
 =item PROCESSLIST_STATS
 
-This data is from INFORMATION_SCHEMA.PROCESSLIST and computes the maximum time
+This data is from SHOW FULL PROCESSLIST and computes stats such as the maximum time
 a user query has been running, and how many user queries are running. A "user
 query" excludes replication threads.
 

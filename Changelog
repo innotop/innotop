@@ -1,7 +1,25 @@
 Changelog for innotop:
 
+2012-09-07: version 1.9.0
+
+   Changes:
+	* A new Health Dashboard (A) mode is the default mode.
+	* Added a new InnoDB Locked (K) mode.
+	* Added a new 'spark' config variable for sparklines.
+	* Added a new fuzzy_time formatting function.
+	* Added "query distill" summarizing.
+	* Handled more types of errors connecting to the server.
+	* Displayed some data more compactly.
+
    Bugs fixed:
    * Double-quotes were used to terminate strings in SQL (issue 57).
+	* T mode didn't show InnoDB transaction times (issue 67).
+	* Killing a query didn't suggest the longest-running one automatically.
+	* Connections weren't closed on exit (issue 64).
+	* Q mode didn't have connections in its header (issue 63).
+	* Connections and server groups were poorly handled (issue 68).
+	* The RPM spec file was buggy (issue 59).
+	* Event filters were defined wrong (issue 54).
 
 2012-02-25: version 1.8.1
 
