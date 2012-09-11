@@ -3019,7 +3019,7 @@ my %tbl_meta = (
       sort_dir  => '1',
       innodb    => '',
       colors   => [
-         { col => 'slave_running',      op => '=~', arg => '^No',   color => 'black on_red' },
+         { col => 'slave_running',      op => '=~', arg => 'No',   color => 'black on_red' },
          { col => 'max_query_time',     op => '>',  arg => 30 * 60, color => 'red' },
          { col => 'max_query_time',     op => '>',  arg => 600,     color => 'yellow' },
          { col => 'time_behind_master', op => '>',  arg => 3600,    color => 'cyan' },
@@ -6932,7 +6932,7 @@ sub distill {
    my ( $ddl ) = $query =~ m/^\s*((?:CREATE|ALTER|TRUNCATE|DROP|RENAME|CHECK|REPAIR))\b/i;
    if ( $ddl ) {
       my ( $obj ) = $query =~ m/$ddl.+(DATABASE|TABLE)\b/i;
-      $query =~ s/$obj\s*if\s*exists/$obj/i;
+      $query =~ s/$obj\s*if\s*(?:not\s*)?exists/$obj/i;
       $obj = uc $obj if $obj;
       $verbs = uc($ddl . ($obj ? " $obj" : ''));
       ($table) = $query =~ m/(?:TABLE|DATABASE)\s+($tbl_ident)(\s+.*)?/i;
