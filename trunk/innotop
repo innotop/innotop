@@ -7653,9 +7653,12 @@ sub compile_expr {
 # This is a subroutine because it's called from a key to quit the program.
 sub finish {
    save_config();
-   foreach my $dbh ( map { $_->{dbh} } values %dbhs ) {
+   foreach my $cxn ( values %dbhs ) {
       eval {
-         $dbh->disconnect;
+         foreach my $sth ( values %{$cxn->{stmts}} ) {
+            $sth->finish;
+         }
+         $cxn->{dbh}->disconnect;
       };
       # Ignore eval errors, we just don't care
    }
