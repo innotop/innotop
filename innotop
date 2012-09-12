@@ -3100,6 +3100,14 @@ my %modes = (
             action => sub { kill_query('QUERY') },
             label => "Kill a query",
          },
+         r => {
+            action => sub { reverse_sort('health_dashboard'); },
+            label  => 'Reverse sort order',
+         },
+         s => {
+            action => sub { choose_sort_cols('health_dashboard'); },
+            label => "Choose sort column",
+         },
       },
       display_sub       => \&display_A,
       connections       => [],
