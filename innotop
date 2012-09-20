@@ -6593,6 +6593,7 @@ sub commify {
 # Trim to desired precision.
 sub set_precision {
    my ( $num, $precision ) = @_;
+   $num = 0 unless defined $num;
    $precision = $config{num_digits}->{val} if !defined $precision;
    sprintf("%.${precision}f", $num);
 }
