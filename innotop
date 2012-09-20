@@ -1671,6 +1671,7 @@ my %columns = (
    max_query_time              => { hdr => 'MaxSQL',              num => 1, label => 'Longest running SQL' },
    merged_recs                 => { hdr => 'Merged Recs',         num => 1, label => 'Merged records' },
    merges                      => { hdr => 'Merges',              num => 1, label => 'Merges' },
+   miss_rate                   => { hdr => 'Miss',                num => 1, label => 'InnoDB buffer pool miss rate' },
    mutex_os_waits              => { hdr => 'Waits',               num => 1, label => 'Mutex OS Waits' },
    mutex_spin_rounds           => { hdr => 'Rounds',              num => 1, label => 'Mutex Spin Rounds' },
    mutex_spin_waits            => { hdr => 'Spins',               num => 1, label => 'Mutex Spin Waits' },
@@ -3004,16 +3005,17 @@ my %tbl_meta = (
          spark_run          => { src => 'SPARK_run' },
          max_query_time     => { src => 'Max_query_time', trans => [qw(fuzzy_time)] },
          connections        => { src => 'Threads_connected' },
+         miss_rate          => { src => 'Innodb_buffer_pool_reads/Uptime_hires', trans => [qw(set_precision)] },
          locked_count       => { src => 'Locked_count' },
          'open'             => { src => 'Open_tables' },
          slave_running      => { src => 'Slave_ok . " " . (Slaves || "")' },
          time_behind_master => { src => 'seconds_behind_master', hdr => 'ReplLag' , trans => [qw(fuzzy_time)] },
          longest_sql        => { src => 'Longest_sql', trans => [qw(distill)] },
       },
-      visible   => [qw(cxn uptime max_query_time time_behind_master
-                       connections locked_count qps spark_qps run spark_run
-                       open slave_running
-                       longest_sql )],
+      visible   => [qw(
+                        cxn uptime max_query_time time_behind_master qps connections run
+                        miss_rate locked_count open slave_running longest_sql
+                       )],
       filters   => [],
       sort_cols => 'cxn',
       sort_dir  => '1',
@@ -5063,11 +5065,11 @@ sub display_A {
       my $set  = $vars{$cxn}->{$clock};
       my $pre  = $vars{$cxn}->{$clock-1} || $set;
       my $hash = extract_values($set, $set, $pre, 'health_dashboard');
-      # Make QPS show QPS now, not overall.
+      # Make QPS and Miss show now, not overall.
       if ( exists $vars{$cxn}->{$clock - 1} ) {
          my $inc   = inc(0, $cxn);
          my $hash2 = extract_values($inc, $set, $pre, 'health_dashboard');
-         map { $hash->{$_} = $hash2->{$_} } qw(qps);
+         map { $hash->{$_} = $hash2->{$_} } qw(qps miss_rate);
       }
       push @health_dashboard, $hash;
    }
