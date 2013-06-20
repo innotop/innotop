@@ -446,7 +446,7 @@ sub new {
 # to parse (hashref; if empty, parse all), and whether to parse full info from
 # locks and such (probably shouldn't unless you need to).
 sub parse_status_text {
-   my ( $self, $fulltext, $debug, $sections, $full ) = @_;
+   my ( $self, $fulltext, $debug, $sections, $full, $mysqlversion ) = @_;
 
    die "I can't parse undef" unless defined $fulltext;
    $fulltext =~ s/[\r\n]+/\n/g;
@@ -468,8 +468,16 @@ sub parse_status_text {
    # Get the most basic info about the status: beginning and end, and whether
    # I got the whole thing (if there has been a big deadlock and there are
    # too many locks to print, the output might be truncated)
-   my ( $time_text ) = $fulltext =~ m/^$s INNODB MONITOR OUTPUT$/m;
-   $innodb_data{'ts'} = [ parse_innodb_timestamp( $time_text ) ];
+
+   my $time_text;
+   if ( $mysqlversion =~ /^5\.6/ ) {
+      ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-f]* INNODB MONITOR OUTPUT/m;
+      $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
+   } else {
+      ( $time_text ) = $fulltext =~ m/^$s INNODB MONITOR OUTPUT$/m;
+      $innodb_data{'ts'} = [ parse_innodb_timestamp( $time_text ) ];
+   }
+
    $innodb_data{'timestring'} = ts_to_string($innodb_data{'ts'});
    ( $innodb_data{'last_secs'} ) = $fulltext
       =~ m/Per second averages calculated from the last $d seconds/;
@@ -532,7 +540,8 @@ sub parse_status_text {
                   $innodb_data{'sections'}->{$section},
                   $innodb_data{'sections'}->{$section}->{'complete'},
                   $debug,
-                  $full )
+                  $full,
+                  $mysqlversion)
                or delete $innodb_data{'sections'}->{$section};
          }
          else {
@@ -549,11 +558,11 @@ sub parse_status_text {
 
 # Parses the status text and returns it flattened out as a single hash.
 sub get_status_hash {
-   my ( $self, $fulltext, $debug, $sections, $full ) = @_;
+   my ( $self, $fulltext, $debug, $sections, $full, $mysqlversion ) = @_;
 
    # Parse the status text...
    my $innodb_status
-      = $self->parse_status_text($fulltext, $debug, $sections, $full );
+      = $self->parse_status_text($fulltext, $debug, $sections, $full, $mysqlversion );
 
    # Flatten the hierarchical structure into a single list by grabbing desired
    # sections from it.
@@ -614,14 +623,29 @@ sub parse_innodb_timestamp {
    return ( $y, $m, $d, $h, $i, $s );
 }
 
+sub parse_innodb_timestamp_56 {
+   my $text = shift;
+   my ( $y, $m, $d, $h, $i, $s )
+      = $text =~ m/^(\d\d\d\d)-(\d\d)-(\d\d) +(\d+):(\d+):(\d+)$/;
+   die("Can't get timestamp from $text\n") unless $y;
+   return ( $y, $m, $d, $h, $i, $s );
+}
+
 sub parse_fk_section {
-   my ( $section, $complete, $debug, $full ) = @_;
+   my ( $section, $complete, $debug, $full, $mysqlversion ) = @_;
    my $fulltext = $section->{'fulltext'};
 
    return 0 unless $fulltext;
 
-   my ( $ts, $type ) = $fulltext =~ m/^$s\s+(\w+)/m;
-   $section->{'ts'} = [ parse_innodb_timestamp( $ts ) ];
+   my ( $ts, $type );
+   if ( $mysqlversion =~ /^5.6/ ) {
+      ( $ts, $type ) = $fulltext =~ m/^([0-9-]* [0-9:]*)\s[0-9a-f]*\s+(\w+)/m;
+      $section->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
+   } else {
+      ( $ts, $type ) = $fulltext =~ m/^$s\s+(\w+)/m;
+      $section->{'ts'} = [ parse_innodb_timestamp( $ts ) ];
+   } 
+
    $section->{'timestring'} = ts_to_string($section->{'ts'});
    $section->{'type'} = $type;
 
@@ -9522,6 +9546,7 @@ sub get_innodb_status {
                $config{debug}->{val},
                \%sections_required,
                0, # don't parse full lock information
+               $show_variables{$cxn}->{version}
             )
          );
          if ( !$innodb_status{IB_got_all} && $config{auto_wipe_dl}->{val} ) {
