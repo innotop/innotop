@@ -13,6 +13,8 @@ URL:       http://innotop.googlecode.com/
 Buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 Buildarch: noarch
 Source:    http://%{name}.googlecode.com/files/%{name}-%{version}.tar.gz
+BuildRequires: perl-ExtUtils-MakeMaker, perl-Test-Simple, perl-Time-HiRes
+Requires: perl-Time-HiRes, perl-DBI, perl-DBD-MySQL, perl-TermReadkey
 %define filelist %{name}-%{version}-filelist
 %{!?maketest: %define maketest 1}
 
@@ -113,6 +115,9 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Fri Sep 07 2012 Frederic Descamps <lefred@lefred.be>
+ - add build requirements
+
 * Mon Jan 08 2007 Lenz Grimmer <lenz@grimmer.com>
  - Updated the spec file to reflect the changes in 1.0, fixed the URLs
  - removed the reference to innotop.html, added INSTALL to the docs instead
