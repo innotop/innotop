@@ -4970,6 +4970,10 @@ sub deadlock_thread {
 
    eval {
       my $dbh = get_new_db_connection($cxn, 1);
+
+      # disable binary logging for this session
+      $dbh->do("set SQL_LOG_BIN=0");
+
       my @stmts = (
          "set transaction isolation level serializable",
          (version_ge($dbh, '4.0.11') ? "start transaction" : 'begin'),
@@ -9571,6 +9575,9 @@ sub clear_deadlock {
    return unless $tbl;
 
    eval {
+      # disable binary logging for the session
+      do_query($cxn, "set SQL_LOG_BIN=0");
+
       # Set up the table for creating a deadlock.
       my $engine = version_ge($dbhs{$cxn}->{dbh}, '4.1.2') ? 'engine' : 'type';
       return unless do_query($cxn, "drop table if exists $tbl");
@@ -9600,6 +9607,11 @@ sub clear_deadlock {
 
       # Clean up.
       do_query($cxn, "drop table $tbl");
+
+      # enable binary logging for the session again
+      # the session by itself will not be used anymore, but this is clean :)
+      do_query($cxn, "set SQL_LOG_BIN=1");
+
    };
    if ( $EVAL_ERROR ) {
       print $EVAL_ERROR;
