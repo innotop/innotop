@@ -2,7 +2,7 @@
 use strict;
 use warnings FATAL => 'all';
 use English qw(-no_match_vars);
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Data::Dumper;
 
 my $path;
@@ -26,6 +26,14 @@ sub read_file {
    close $fh;
    return $contents;
 }
+
+my %versions = (
+   $path . 't/innodb-status-001' => "5.5or-earlier",
+   $path . 't/innodb-status-002' => "5.5or-earlier",
+   $path . 't/innodb-status-006' => "5.5or-earlier",
+   $path . 't/innodb-status-007' => "5.5or-earlier",
+   $path . 't/innodb-status-008' => "5.6.12"
+);
 
 my %tests = (
    $path . 't/innodb-status-001' => {
@@ -1705,11 +1713,266 @@ my %tests = (
     ],
     IB_tx_trx_id_counter => 'B0055592'
   },
+  $path . "t/innodb-status-008" => {
+    IB_bp_add_pool_alloc => '0',
+    IB_bp_awe_mem_alloc => 0,
+    IB_bp_buf_free => '8002',
+    IB_bp_buf_pool_hit_rate => '895 / 1000',
+    IB_bp_buf_pool_hits => '895',
+    IB_bp_buf_pool_reads => '1000',
+    IB_bp_buf_pool_size => '8191',
+    IB_bp_complete => 1,
+    IB_bp_dict_mem_alloc => '61633',
+    IB_bp_page_creates_sec => '0.03',
+    IB_bp_page_reads_sec => '0.36',
+    IB_bp_page_writes_sec => '0.15',
+    IB_bp_pages_created => '1',
+    IB_bp_pages_modified => '0',
+    IB_bp_pages_read => '188',
+    IB_bp_pages_total => '189',
+    IB_bp_pages_written => '6',
+    IB_bp_reads_pending => '0',
+    IB_bp_total_mem_alloc => '137363456',
+    IB_bp_writes_pending => '0',
+    IB_bp_writes_pending_flush_list => 0,
+    IB_bp_writes_pending_lru => 0,
+    IB_bp_writes_pending_single_page => 0,
+    IB_dl_complete => undef,
+    IB_dl_rolled_back => undef,
+    IB_dl_timestring => undef,
+    IB_dl_txns => undef,
+    IB_fk_attempted_op => 'delete or update',
+    IB_fk_child_db => 'test',
+    IB_fk_child_index => 'parent_id',
+    IB_fk_child_table => 'child',
+    IB_fk_col_name => 'parent_id',
+    IB_fk_complete => 1,
+    IB_fk_fk_name => 'child_ibfk_1',
+    IB_fk_parent_col => 'id',
+    IB_fk_parent_db => 'test',
+    IB_fk_parent_index => 'PRIMARY',
+    IB_fk_parent_table => 'parent',
+    IB_fk_reason => 'Foreign key constraint fails for table `test`.`child`:',
+    IB_fk_records => '',
+    IB_fk_timestring => '2013-06-19 13:47:33',
+    IB_fk_trigger => {
+      byte_offset => 0,
+      fields => [
+        {
+          asc => '    ',
+          hex => '80000001',
+          id => '0',
+          len => '4',
+          trunc => 0
+        }
+      ],
+      heap_no => 0,
+      info_bits => 0,
+      num_fields => '4',
+      style => 'tuple',
+      type => 'DATA TUPLE'
+    },
+    IB_fk_txn => {
+      active_secs => 0,
+      has_read_view => 0,
+      heap_size => '1248',
+      hostname => 'localhost',
+      ip => '',
+      lock_structs => '4',
+      lock_wait_status => '',
+      lock_wait_time => 0,
+      mysql_thread_id => '1',
+      os_thread_id => undef,
+      proc_no => 0,
+      query_id => '14',
+      query_status => 'updating',
+      query_text => 'delete from parent',
+      row_locks => '2',
+      tables_in_use => '1',
+      tables_locked => '1',
+      thread_decl_inside => 0,
+      thread_status => 'updating or deleting',
+      txn_doesnt_see_ge => '',
+      txn_id => '2820',
+      txn_sees_lt => '',
+      txn_status => 'ACTIVE',
+      undo_log_entries => '1',
+      user => 'root'
+    },
+    IB_fk_type => 'Transaction',
+    IB_got_all => 1,
+    IB_ib_bufs_in_node_heap => '0',
+    IB_ib_complete => 1,
+    IB_ib_free_list_len => '0',
+    IB_ib_hash_searches_s => '0.00',
+    IB_ib_hash_table_size => '276671',
+    IB_ib_inserts => undef,
+    IB_ib_merged_recs => 0,
+    IB_ib_merges => 0,
+    IB_ib_non_hash_searches_s => '1.06',
+    IB_ib_seg_size => '2',
+    IB_ib_size => '1',
+    IB_ib_used_cells => undef,
+    IB_io_avg_bytes_s => '16384',
+    IB_io_complete => 1,
+    IB_io_flush_type => 'fsync',
+    IB_io_fsyncs_s => '0.15',
+    IB_io_os_file_reads => '330',
+    IB_io_os_file_writes => '13',
+    IB_io_os_fsyncs => '10',
+    IB_io_pending_aio_writes => undef,
+    IB_io_pending_buffer_pool_flushes => '0',
+    IB_io_pending_ibuf_aio_reads => '0',
+    IB_io_pending_log_flushes => '0',
+    IB_io_pending_log_ios => '0',
+    IB_io_pending_normal_aio_reads => undef,
+    IB_io_pending_preads => 0,
+    IB_io_pending_pwrites => 0,
+    IB_io_pending_sync_ios => '0',
+    IB_io_reads_s => '0.39',
+    IB_io_threads => {
+      '0' => {
+        event_set => 0,
+        purpose => 'insert buffer thread',
+        state => 'waiting for completed aio requests',
+        thread => '0'
+      },
+      '1' => {
+        event_set => 0,
+        purpose => 'log thread',
+        state => 'waiting for completed aio requests',
+        thread => '1'
+      },
+      '2' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '2'
+      },
+      '3' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '3'
+      },
+      '4' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '4'
+      },
+      '5' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '5'
+      },
+      '6' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '6'
+      },
+      '7' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '7'
+      },
+      '8' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '8'
+      },
+      '9' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '9'
+      }
+    },
+    IB_io_writes_s => '0.24',
+    IB_last_secs => '33',
+    IB_lg_complete => 1,
+    IB_lg_last_chkp => '1666626',
+    IB_lg_log_flushed_to => '1666626',
+    IB_lg_log_ios_done => '10',
+    IB_lg_log_ios_s => '0.06',
+    IB_lg_log_seq_no => '1666626',
+    IB_lg_pending_chkp_writes => '0',
+    IB_lg_pending_log_writes => '0',
+    IB_ro_complete => 1,
+    IB_ro_del_sec => '0.00',
+    IB_ro_ins_sec => '0.00',
+    IB_ro_main_thread_id => '140085928748800',
+    IB_ro_main_thread_proc_no => '1289',
+    IB_ro_main_thread_state => 'sleeping',
+    IB_ro_n_reserved_extents => 0,
+    IB_ro_num_rows_del => '0',
+    IB_ro_num_rows_ins => '0',
+    IB_ro_num_rows_read => '1',
+    IB_ro_num_rows_upd => '0',
+    IB_ro_queries_in_queue => '0',
+    IB_ro_queries_inside => '0',
+    IB_ro_read_sec => '0.03',
+    IB_ro_read_views_open => 0,
+    IB_ro_upd_sec => '0.00',
+    IB_sm_complete => 1,
+    IB_sm_mutex_os_waits => '3',
+    IB_sm_mutex_spin_rounds => '120',
+    IB_sm_mutex_spin_waits => '4',
+    IB_sm_reservation_count => undef,
+    IB_sm_rw_excl_os_waits => '0',
+    IB_sm_rw_excl_spins => '0',
+    IB_sm_rw_shared_os_waits => '2',
+    IB_sm_rw_shared_spins => '3',
+    IB_sm_signal_count => undef,
+    IB_sm_wait_array_size => 0,
+    IB_sm_waits => [],
+    IB_timestring => '2013-06-19 13:47:37',
+    IB_tx_complete => 1,
+    IB_tx_history_list_len => '18',
+    IB_tx_is_truncated => 0,
+    IB_tx_num_lock_structs => undef,
+    IB_tx_purge_done_for => undef,
+    IB_tx_purge_undo_for => undef,
+    IB_tx_transactions => [
+      {
+        active_secs => 0,
+        has_read_view => 0,
+        heap_size => 0,
+        hostname => 'localhost',
+        ip => '',
+        lock_structs => 0,
+        lock_wait_status => '',
+        lock_wait_time => 0,
+        mysql_thread_id => '1',
+        os_thread_id => undef,
+        proc_no => 0,
+        query_id => '15',
+        query_status => 'init',
+        query_text => 'show engine innodb status',
+        row_locks => 0,
+        tables_in_use => 0,
+        tables_locked => 0,
+        thread_decl_inside => 0,
+        thread_status => '',
+        txn_doesnt_see_ge => '',
+        txn_id => '2820',
+        txn_sees_lt => '',
+        txn_status => 'not started',
+        undo_log_entries => 0,
+        user => 'root'
+      }
+    ],
+    IB_tx_trx_id_counter => '2822'
+    }
 );
 
 foreach my $fn ( keys %tests ) {
    my $contents = read_file($fn);
-   my %result   = $innodb_parser->get_status_hash($contents);
+   my %result   = $innodb_parser->get_status_hash($contents, undef, undef, undef, $versions{$fn});
    local $Data::Dumper::Indent = 2;
    #print Dumper \%result;
    my $expected = $tests{$fn};
