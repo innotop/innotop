@@ -3,18 +3,25 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.9.0
-Release:   0
+Version:   1.9.1
+Release:   1
 Vendor:    Baron Schwartz <baron@percona.com>
-Packager:  Baron Schwartz <baron@percona.com>
+Packager:  Frederic Descamps <lefred@percona.com>
 License:   GPL/Artistic
 Group:     System/Monitoring
 URL:       http://innotop.googlecode.com/
 Buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 Buildarch: noarch
 Source:    http://%{name}.googlecode.com/files/%{name}-%{version}.tar.gz
-BuildRequires: perl-ExtUtils-MakeMaker, perl-Test-Simple, perl-Time-HiRes
-Requires: perl-Time-HiRes, perl-DBI, perl-DBD-MySQL, perl-TermReadkey
+BuildRequires: perl-ExtUtils-MakeMaker, perl-Test-Simple, make
+BuildRequires: perl-DBI, perl-DBD-MySQL, perl-TermReadKey
+Requires: perl-DBI, perl-DBD-MySQL, perl-TermReadKey
+%if 0%{?rhel} > 4
+BuildRequires:  perl-Time-HiRes
+Requires:	perl-Time-HiRes
+%endif
+
+
 %define filelist %{name}-%{version}-filelist
 %{!?maketest: %define maketest 1}
 
@@ -115,6 +122,16 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Fri Jul 12 2013 Frederic Descamps <lefred@lefred.be> - 1.9.1-1
+ - Package for svn source code revision 113
+
+* Thu Jul 11 2013 Frederic Descamps <lefred@lefred.be> - 1.9.0-3
+ - Add MySQL 5.6 support (patch https://code.google.com/p/innotop/issues/detail?id=83)
+ - Add extra build requirement packages
+
+* Fri Sep 14 2012 Frederic Descamps <lefred@lefred.be> - 1.9.0-2
+ - fix perl-TermReadKey requirement - typo
+
 * Fri Sep 07 2012 Frederic Descamps <lefred@lefred.be>
  - add build requirements
 
