@@ -1,5 +1,14 @@
 Changelog for innotop:
 
+2013-07-12: version 1.9.1
+
+   Bugs fixed:
+	* Support of MySQL 5.6 was broken on some pages (issue 82, 83)
+	* Deadlock clearing transactions is now not included in binary log
+	(issue 84)
+	* New spec file with requirements and build requirements for
+	CentOS/RHEL and Fedora
+
 2012-09-07: version 1.9.0
 
    Changes:
@@ -12,7 +21,7 @@ Changelog for innotop:
 	* Displayed some data more compactly.
 
    Bugs fixed:
-   * Double-quotes were used to terminate strings in SQL (issue 57).
+	* Double-quotes were used to terminate strings in SQL (issue 57).
 	* T mode didn't show InnoDB transaction times (issue 67).
 	* Killing a query didn't suggest the longest-running one automatically.
 	* Connections weren't closed on exit (issue 64).
