@@ -3,6 +3,7 @@
 # vim: tw=160:nowrap:expandtab:tabstop=3:shiftwidth=3:softtabstop=3
 
 # This program is copyright (c) 2006 Baron Schwartz, baron at xaprb dot com.
+# Maintainers since 2013 : Kenny Gryp - Frédéric Descamps 
 # Feedback and improvements are gratefully received.
 #
 # THIS PROGRAM IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
@@ -15,8 +16,8 @@
 # systems, you can issue `man perlgpl' or `man perlartistic' to read these
 
 # You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-# Place, Suite 330, Boston, MA  02111-1307  USA
+# this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
+# Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 use strict;
 use warnings FATAL => 'all';
