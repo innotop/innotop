@@ -5117,6 +5117,7 @@ sub display_A {
 sub display_B {
    my @display_lines;
    my @cxns = get_connections();
+   get_status_info(@cxns);
    get_innodb_status(\@cxns);
 
    my @buffer_pool;
@@ -5227,6 +5228,7 @@ sub display_C {
 sub display_D {
    my @display_lines;
    my @cxns = get_connections();
+   get_status_info(@cxns);
    get_innodb_status(\@cxns);
 
    my @deadlock_transactions;
@@ -5291,6 +5293,7 @@ sub display_D {
 sub display_F {
    my @display_lines;
    my ( $cxn ) = get_connections();
+   get_status_info($cxn);
    get_innodb_status([$cxn]);
    my $innodb_status = $vars{$cxn}->{$clock};
 
@@ -5325,6 +5328,7 @@ sub display_F {
 sub display_I {
    my @display_lines;
    my @cxns = get_connections();
+   get_status_info(@cxns);
    get_innodb_status(\@cxns);
 
    my @io_threads;
@@ -5426,6 +5430,7 @@ sub display_K {
 sub display_L {
    my @display_lines;
    my @cxns = get_connections();
+   get_status_info(@cxns);
    get_innodb_status(\@cxns);
 
    my @innodb_locks;
@@ -5636,6 +5641,7 @@ sub display_Q {
 sub display_R {
    my @display_lines;
    my @cxns = get_connections();
+   get_status_info(@cxns);
    get_innodb_status(\@cxns);
 
    my @row_operations;
@@ -5707,6 +5713,8 @@ sub display_T {
    my %wanted  = map { $_ => 1 } @visible;
 
    my @cxns = get_connections();
+
+   get_status_info(@cxns);
 
    # If the header is to be shown, buffer pool data is required.
    get_innodb_status( \@cxns, [ $wanted{t_header} ? qw(bp) : () ] );
