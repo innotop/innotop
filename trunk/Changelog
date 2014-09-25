@@ -1,5 +1,8 @@
 Changelog for innotop:
 
+2014-09-25: version 1.10.0
+        * Support for MariaDB 10.0 in InnoDB row (issue 93)
+
 2013-07-12: version 1.9.1
 
    Bugs fixed:
