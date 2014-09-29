@@ -2722,7 +2722,7 @@ my %tbl_meta = (
          cxn             => { src => 'cxn',        minw => 6,  maxw => 10 },
          mysql_thread_id => { src => 'id',         minw => 6,  maxw => 0 },
          user            => { src => 'user',       minw => 5,  maxw => 8 },
-         hostname        => { src => $exprs{Host}, minw => 13, maxw => 8, },
+         hostname        => { src => $exprs{Host}, minw => 7,  maxw => 15, },
          port            => { src => $exprs{Port}, minw => 0,  maxw => 0, },
          host_and_port   => { src => 'host',       minw => 0,  maxw => 0 },
          db              => { src => 'db',         minw => 6,  maxw => 12 },
