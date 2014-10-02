@@ -2307,7 +2307,7 @@ my %tbl_meta = (
          has_read_view      => { src => 'has_read_view' },
          heap_size          => { src => 'heap_size' },
          host_and_domain    => { src => 'hostname' },
-         hostname           => { src => 'hostname', minw => 7, maxw => 15 },
+         hostname           => { src => $exprs{Host} },
          ip                 => { src => 'ip' },
          lock_structs       => { src => 'lock_structs' },
          lock_wait_time     => { src => 'lock_wait_time', trans => [ qw(secs_to_time) ] },
@@ -2553,7 +2553,7 @@ my %tbl_meta = (
          active_secs        => { src => 'active_secs' },
          has_read_view      => { src => 'has_read_view' },
          heap_size          => { src => 'heap_size' },
-         hostname           => { src => 'hostname', minw => 7, maxw => 15 },
+         hostname           => { src => $exprs{Host} },
          ip                 => { src => 'ip' },
          wait_status        => { src => 'lock_wait_status' },
          lock_wait_time     => { src => 'lock_wait_time',      trans => [ qw(secs_to_time) ] },
@@ -6430,8 +6430,10 @@ sub set_to_tbl {
          }
       }
       if (not $has_cxn) {
-         unshift @{$meta->{visible}}, "cxn";
-         unshift @{$meta->{group_by}}, "cxn";
+         map { push @visible, $_ if $_ !~ /^cxn$/ } @{$meta->{visible}};
+         $meta->{visible} = \@visible;
+         map { push @group_by, $_ if $_ !~ /^cxn$/ } @{$meta->{group_by}};
+         $meta->{group_by} = \@group_by;
       }
    }
 
