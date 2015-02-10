@@ -6988,7 +6988,7 @@ sub distill {
          }xio;
    my ( $ddl ) = $query =~ m/^\s*((?:CREATE|ALTER|TRUNCATE|DROP|RENAME|CHECK|REPAIR))\b/i;
    if ( $ddl ) {
-      my ( $obj ) = $query =~ m/$ddl.+(DATABASE|TABLE|INDEX)\b/i;
+      my ( $obj ) = $query =~ m/$ddl.+(DATABASE|EVENT|FUNCTION|INDEX|LOGFILE GROUP|PROCEDURE|SERVER|TABLE|TABLESPACE|TRIGGER|VIEW)\b/i;
       if ( $obj ) {
          $query =~ s/$obj\s*if\s*(?:not\s*)?exists/$obj/i;
          $verbs = uc($ddl . ($obj ? " $obj" : ''));
