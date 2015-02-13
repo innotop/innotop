@@ -1936,7 +1936,7 @@ my %builtin_filters = (
          return $set->{master_host} ? 1 : 0;
       END
       note => 'Removes servers that are not slaves',
-      tbls => [qw(slave_io_status slave_sql_status)],
+      tbls => [qw(slave_io_status slave_sql_gtid_status slave_sql_status)],
    },
    thd_is_not_waiting => {
       text => <<'      END',
@@ -2893,6 +2893,24 @@ my %tbl_meta = (
       group_by => [],
       aggregate => 0,
    },
+   slave_sql_gtid_status => {
+      capt => 'Slave SQL Status GTID',
+      cust => {},
+      cols => {
+         cxn                         => { src => 'cxn' },
+         master_host                 => { src => 'master_host', hdr => 'Master'},
+         retrieved_gtid_set          => { src => '(retrieved_gtid_set||"N/A")' },
+         executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' }
+      },
+      visible => [ qw(cxn retrieved_gtid_set executed_gtid_set)],
+      filters => [ qw( cxn_is_slave ) ],
+      sort_cols => '',
+      sort_dir => '1',
+      innodb   => '',
+      colors   => [],
+      group_by => [],
+      aggregate => 0,
+   },
    slave_sql_status => {
       capt => 'Slave SQL Status',
       cust => {},
@@ -2921,11 +2939,9 @@ my %tbl_meta = (
          time_behind_master          => { src => 'seconds_behind_master', trans => [ qw(secs_to_time) ] },
          bytes_behind_master         => { src => 'master_log_file && master_log_file eq relay_master_log_file ? read_master_log_pos - exec_master_log_pos : 0', trans => [qw(shorten)] },
          slave_catchup_rate          => { src => $exprs{SlaveCatchupRate}, trans => [ qw(set_precision) ] },
-         slave_open_temp_tables      => { src => 'Slave_open_temp_tables' },
-         retrieved_gtid_set          => { src => '(retrieved_gtid_set||"N/A")' },
-         executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' },
+         slave_open_temp_tables      => { src => 'Slave_open_temp_tables' }
       },
-      visible => [ qw(cxn master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error retrieved_gtid_set executed_gtid_set)],
+      visible => [ qw(cxn master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error)],
       filters => [ qw( cxn_is_slave ) ],
       sort_cols => 'slave_sql_running cxn',
       sort_dir => '1',
@@ -3306,8 +3322,8 @@ my %modes = (
       connections       => [],
       server_group      => '',
       one_connection    => 0,
-      tables            => [qw(slave_sql_status slave_io_status master_status)],
-      visible_tables    => [qw(slave_sql_status slave_io_status master_status)],
+      tables            => [qw(slave_sql_status slave_io_status slave_sql_gtid_status master_status)],
+      visible_tables    => [qw(slave_sql_status slave_io_status slave_sql_gtid_status master_status)],
    },
    O => {
       hdr               => 'Open Tables',
@@ -5526,9 +5542,11 @@ sub display_M {
    get_status_info(@cxns);
 
    my @slave_sql_status;
+   my @slave_sql_gtid_status;
    my @slave_io_status;
    my @master_status;
    my %rows_for = (
+      slave_sql_gtid_status => \@slave_sql_gtid_status,
       slave_sql_status => \@slave_sql_status,
       slave_io_status  => \@slave_io_status,
       master_status    => \@master_status,
@@ -5540,6 +5558,9 @@ sub display_M {
    foreach my $cxn ( @cxns ) {
       my $set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
       my $pre  = $vars{$cxn}->{$clock - 1} || $set;
+      if ( $wanted{slave_sql_gtid_status} ) {
+         push @slave_sql_gtid_status, extract_values($set, $set, $pre, 'slave_sql_gtid_status');
+      }
       if ( $wanted{slave_sql_status} ) {
          push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
       }
@@ -5557,7 +5578,6 @@ sub display_M {
       push @display_lines, get_cxn_errors(@cxns)
          if ( $config{debug}->{val} || !$first_table++ );
    }
-
    draw_screen(\@display_lines);
 }
 
