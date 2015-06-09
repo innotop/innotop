@@ -472,7 +472,7 @@ sub parse_status_text {
 
    my $time_text;
    if ( ($mysqlversion =~ /^5\.6/) || ($mysqlversion =~ /^5\.7/) || ($mysqlversion =~ /^10\.0/) ) {
-      ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-f]* INNODB MONITOR OUTPUT/m;
+      ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-fx]* INNODB MONITOR OUTPUT/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
    } else {
       ( $time_text ) = $fulltext =~ m/^$s INNODB MONITOR OUTPUT$/m;
@@ -640,7 +640,7 @@ sub parse_fk_section {
 
    my ( $ts, $type );
    if ( ($mysqlversion =~ /^5.6/) || ($mysqlversion =~ /^5.7/) || ($mysqlversion =~ /^10.0/) ) {
-      ( $ts, $type ) = $fulltext =~ m/^([0-9-]* [0-9:]*)\s[0-9a-f]*\s+(\w+)/m;
+      ( $ts, $type ) = $fulltext =~ m/^([0-9-]* [0-9:]*)\s[0-9a-fx]*\s+(\w+)/m;
       $section->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
    } else {
       ( $ts, $type ) = $fulltext =~ m/^$s\s+(\w+)/m;
