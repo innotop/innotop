@@ -1493,7 +1493,7 @@ my @opt_spec = (
    { s => 'skipcentral|s',     d => 'Skip reading the central configuration file' },
    { s => 'version',    d => 'Output version information and exit' },
    { s => 'user|u=s',   d => 'User for login if not current user' },
-   { s => 'password|p=s',   d => 'Password to use for connection' },
+   { s => 'password|p:s',   d => 'Password to use for connection' },
    { s => 'host|h=s',   d => 'Connect to host' },
    { s => 'port|P=i',   d => 'Port number to use for connection' },
    { s => 'socket|S=s', d => 'MySQL socket to use for connection' },
@@ -1508,7 +1508,7 @@ my %opts = (
 # Post-process...
 my %opt_seen;
 foreach my $spec ( @opt_spec ) {
-   my ( $long, $short ) = $spec->{s} =~ m/^(\w+)(?:\|([^!+=]*))?/;
+   my ( $long, $short ) = $spec->{s} =~ m/^(\w+)(?:\|([^!+=:]*))?/;
    $spec->{k} = $short || $long;
    $spec->{l} = $long;
    $spec->{t} = $short;
@@ -1547,6 +1547,14 @@ monitor many servers at once with innotop.
 
 USAGE
    exit(1);
+}
+
+if ( defined($opts{p}) && length($opts{p}) == 0 ) {
+   print "Enter password: ";
+   ReadMode('noecho');
+   $opts{p} = <STDIN>;
+   chomp($opts{p});
+   ReadMode('normal');
 }
 
 # Meta-data (table definitions etc) {{{2
