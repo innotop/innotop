@@ -1493,7 +1493,8 @@ my @opt_spec = (
    { s => 'skipcentral|s',     d => 'Skip reading the central configuration file' },
    { s => 'version',    d => 'Output version information and exit' },
    { s => 'user|u=s',   d => 'User for login if not current user' },
-   { s => 'password|p:s',   d => 'Password to use for connection' },
+   { s => 'password|p=s',   d => 'Password to use for connection' },
+   { s => 'askpass',    d => 'Prompt for a password when connecting to MySQL'},
    { s => 'host|h=s',   d => 'Connect to host' },
    { s => 'port|P=i',   d => 'Port number to use for connection' },
    { s => 'socket|S=s', d => 'MySQL socket to use for connection' },
@@ -1529,6 +1530,11 @@ if ( $opts{c} and ! -f $opts{c} ) {
    print $opts{c} . " doesn't exist.  Exiting.\n";
    exit(1);
 }
+
+if ( $opts{'askpass'} ) {
+    $opts{'p'} = noecho_password("Enter password ");
+}
+
 if ( $opts{'help'} ) {
    print "Usage: innotop <options> <innodb-status-file>\n\n";
    my $maxw = max(map { length($_->{l}) + ($_->{n} ? 4 : 0)} @opt_spec);
@@ -4881,6 +4887,29 @@ sub prompt_noecho {
    $response = <STDIN>;
    chomp($response);
    ReadMode('normal');
+   return $response;
+}
+
+# noecho_password {{{3
+# read password for command line parameters with noecho
+sub noecho_password {
+   my $prompt = shift @_;
+   local $OUTPUT_AUTOFLUSH = 1;
+   my $response;
+   eval {
+      if ( $windows ) {
+         require Win32::Console::ANSI;
+      }
+      require Term::ANSIColor;
+      import Term::ANSIColor qw(colored);
+      $response = prompt_noecho($prompt);
+      print "\n" or die
+         "Cannot print: $OS_ERROR";
+   };
+
+   if ( $EVAL_ERROR ) {
+      die "Cannot read respose; is Term::ReadKey installed? $EVAL_ERROR";
+   }
    return $response;
 }
 
