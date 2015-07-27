@@ -2,6 +2,8 @@
 innotop
 =======
 
+![Snapshot of innotop query monitor](snapshot_queries.png "Snapshot of innotop query monitor")
+
 innotop is a 'top' clone for MySQL with many features and flexibility.
 
 * completely customizable; it even has a plugin interface
