@@ -12157,7 +12157,7 @@ Originally written by Baron Schwartz; currently maintained by Aaron Racine.
 =head1 BUGS
 
 You can report bugs, ask for improvements, and get other help and support at
-L<http://code.google.com/p/innotop/>.  There are mailing lists, a source code
+L<https://github.com/innotop/innotop>.  There are mailing lists, a source code
 browser, a bug tracker, etc.  Please use these instead of contacting the
 maintainer or author directly, as it makes our job easier and benefits others if the
 discussions are permanent and public.  Of course, if you need to contact us in
