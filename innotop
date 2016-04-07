@@ -9788,7 +9788,6 @@ sub get_slave_status {
 	  	 } else {
 				 my $dbh = connect_to_db($cxn);
 				 my $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\''; 
-				 #my $stmt = $dbh->prepare("call DbaTools.SP_Slave_Status('$channel')" ) ;
 				 my $stmt = $dbh->prepare($sql ) ;
 				 $stmt->execute();
          		 my $res = $stmt->fetchall_arrayref({});
