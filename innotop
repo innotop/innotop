@@ -5591,15 +5591,18 @@ sub display_M {
 	     $sth->execute();
 	     $sth->bind_columns( \$channel );
 		 while ( $sth->fetch() ) {
+			my $chcxn = $channel . $cxn;
 			get_slave_status($cxn,$channel);
-		  	my $set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
-			my $pre  = $vars{$cxn}->{$clock - 1} || $set;
+		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
+			my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
 			if ( $wanted{slave_sql_status} ) {
 				push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
 			}
 			if ( $wanted{slave_io_status} ) {
 				push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
 			}
+		  	$set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
+			$pre  = $vars{$cxn}->{$clock - 1} || $set;
 			if ( $wanted{master_status} ) {
 				push @master_status, extract_values($set, $set, $pre, 'master_status');
 			}
@@ -9767,10 +9770,11 @@ sub get_master_slave_status {
 # Separated handling of slave status to support 5.7 and replication channels
 sub get_slave_status {
    my ($cxn, $channel) = @_;
-         $vars{$cxn}->{$clock} ||= {};
-         my $vars = $vars{$cxn}->{$clock};
-         $vars->{cxn} = $cxn;
-         $vars->{Uptime_hires} ||= get_uptime($cxn);
+   		 my $chcxn = $channel . $cxn;
+         $vars{$chcxn}->{$clock} ||= {};
+         my $vars = $vars{$chcxn}->{$clock};
+         $vars->{chcxn} = $chcxn;
+         $vars->{Uptime_hires} ||= get_uptime($chcxn);
 
 		 if ( $channel =~ /no_channels/ ) {
          	my $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS') or next;
