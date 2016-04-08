@@ -2667,14 +2667,13 @@ my %tbl_meta = (
          binlog_cache_overflow       => { src => '(Binlog_cache_disk_use||0)/(Binlog_cache_use||1)', trans => [ qw(percent) ] },
          executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' },
          server_uuid                 => { src => '(server_uuid||"N/A")' },
-         channel_name                => { src => 'channel_name', hdr => 'Channel'},
       },
-      visible => [ qw(cxn channel_name master_file master_pos binlog_cache_overflow executed_gtid_set server_uuid)],
+      visible => [ qw(cxn master_file master_pos binlog_cache_overflow executed_gtid_set server_uuid)],
       filters => [ qw(cxn_is_master) ],
       sort_cols => 'cxn',
       sort_dir => '1',
       innodb   => '',
-      group_by => [qw(channel_name)],
+      group_by => [],
       aggregate => 0,
    },
    pending_io => {
@@ -5601,11 +5600,11 @@ sub display_M {
 			if ( $wanted{slave_io_status} ) {
 				push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
 			}
-		  	$set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
-			$pre  = $vars{$cxn}->{$clock - 1} || $set;
-			if ( $wanted{master_status} ) {
-				push @master_status, extract_values($set, $set, $pre, 'master_status');
-			}
+		 }
+	  	my $set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
+		my $pre  = $vars{$cxn}->{$clock - 1} || $set;
+		if ( $wanted{master_status} ) {
+			push @master_status, extract_values($set, $set, $pre, 'master_status');
 		}
 	}
 
