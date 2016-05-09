@@ -471,7 +471,7 @@ sub parse_status_text {
    # too many locks to print, the output might be truncated)
 
    my $time_text;
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^10\.[01]\./) ) {
+   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^10\.[012]\./) ) {
       ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-fx]* INNODB MONITOR OUTPUT/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
    } else {
@@ -639,7 +639,7 @@ sub parse_fk_section {
    return 0 unless $fulltext;
 
    my ( $ts, $type );
-   if ( ($mysqlversion =~ /^5.[67]\./) || ($mysqlversion =~ /^10.[01]\./) ) {
+   if ( ($mysqlversion =~ /^5.[67]\./) || ($mysqlversion =~ /^10.[012]\./) ) {
       ( $ts, $type ) = $fulltext =~ m/^([0-9-]* [0-9:]*)\s[0-9a-fx]*\s+(\w+)/m;
       $section->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
    } else {
@@ -899,7 +899,7 @@ sub parse_dl_section {
    my ( $ts ) = $fulltext =~ m/^$s$/m;
    return 0 unless $ts;
 
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^10\.[01]\./) ) {
+   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^10\.[012]\./) ) {
       $dl->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
    }
    else {
@@ -1631,6 +1631,7 @@ my %columns = (
    bytes_behind_master         => { hdr => 'ByteLag',             num => 1, label => 'Bytes the slave lags the master in binlog' },
    cell_event_set              => { hdr => 'Ending?',             num => 1, label => 'Whether the cell event is set' },
    cell_waiting                => { hdr => 'Waiting?',            num => 1, label => 'Whether the cell is waiting' },
+   channel_name                => { hdr => 'Channel',             num => 0, label => 'The name of the replication channel' },
    child_db                    => { hdr => 'Child DB',            num => 0, label => 'The database of the child table' },
    child_index                 => { hdr => 'Child Index',         num => 0, label => 'The index in the child table' },
    child_table                 => { hdr => 'Child Table',         num => 0, label => 'The child table' },
@@ -2271,6 +2272,7 @@ my %tbl_meta = (
       capt => 'Command Summary',
       cust => {},
       cols => {
+         cxn        => { src => 'cxn' },
          name       => { src => 'name' },
          total      => { src => 'total' },
          value      => { src => 'value',                     agg   => 'sum'},
@@ -2279,7 +2281,7 @@ my %tbl_meta = (
          last_value => { src => 'last_value',                agg   => 'sum'},
          last_pct   => { src => 'last_value/last_total',     trans => [qw(percent)] },
       },
-      visible   => [qw(name value pct last_value last_pct)],
+      visible   => [qw(cxn name value pct last_value last_pct)],
       filters   => [qw()],
       sort_cols => '-value',
       sort_dir  => '1',
@@ -2895,8 +2897,9 @@ my %tbl_meta = (
          relay_log_size              => { src => 'relay_log_space', trans => [qw(shorten)] },
          slave_io_running            => { src => 'slave_io_running', hdr => 'On?' },
          slave_io_state              => { src => 'slave_io_state', hdr => 'State' },
+         channel_name                => { src => 'channel_name', hdr => 'Channel'},
       },
-      visible => [ qw(cxn master_host master_uuid slave_io_running master_log_file relay_log_size read_master_log_pos slave_io_state)],
+      visible => [ qw(cxn channel_name master_host master_uuid slave_io_running master_log_file relay_log_size read_master_log_pos slave_io_state)],
       filters => [ qw( cxn_is_slave ) ],
       sort_cols => 'slave_io_running cxn',
       colors   => [
@@ -2904,7 +2907,7 @@ my %tbl_meta = (
       ],
       sort_dir => '1',
       innodb   => '',
-      group_by => [],
+      group_by => [qw(channel_name)],
       aggregate => 0,
    },
    slave_sql_status => {
@@ -2938,8 +2941,9 @@ my %tbl_meta = (
          slave_open_temp_tables      => { src => 'Slave_open_temp_tables' },
          retrieved_gtid_set          => { src => '(retrieved_gtid_set||"N/A")' },
          executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' },
+         channel_name                => { src => 'channel_name', hdr => 'Channel'},
       },
-      visible => [ qw(cxn master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error retrieved_gtid_set executed_gtid_set)],
+      visible => [ qw(cxn channel_name master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error retrieved_gtid_set executed_gtid_set)],
       filters => [ qw( cxn_is_slave ) ],
       sort_cols => 'slave_sql_running cxn',
       sort_dir => '1',
@@ -2950,7 +2954,7 @@ my %tbl_meta = (
          { col => 'time_behind_master', op => '>',  arg => 60,    color => 'yellow' },
          { col => 'time_behind_master', op => '==', arg => 0,     color => 'white' },
       ],
-      group_by => [],
+      group_by => [qw(channel_name)],
       aggregate => 0,
    },
    table_statistics => {
@@ -4609,6 +4613,12 @@ my %stmt_maker_for = (
       my ( $dbh ) = @_;
       return $dbh->prepare('SHOW /*innotop*/ SLAVE STATUS');
    },
+   GET_CHANNELS => sub {
+      my ( $dbh ) = @_;
+      return $dbh->prepare(version_ge( $dbh, '5.7.0' )
+             ? 'select CHANNEL_NAME from performance_schema.replication_applier_status where CHANNEL_NAME regexp "^[a-zA-Z].*";'
+             : 'select "no_channels"');
+   },
    KILL_CONNECTION => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '5.0.0' )
@@ -5575,18 +5585,46 @@ sub display_M {
    my %wanted  = map { $_ => 1 } @visible;
 
    foreach my $cxn ( @cxns ) {
-      my $set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
-      my $pre  = $vars{$cxn}->{$clock - 1} || $set;
-      if ( $wanted{slave_sql_status} ) {
-         push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
-      }
-      if ( $wanted{slave_io_status} ) {
-         push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
-      }
-      if ( $wanted{master_status} ) {
-         push @master_status, extract_values($set, $set, $pre, 'master_status');
-      }
-   }
+		 my $linecount=0;
+		 my $sth = do_stmt($cxn, 'GET_CHANNELS');
+		 my ( $channel );
+	     $sth->execute();
+	     $sth->bind_columns( \$channel );
+		 while ( $sth->fetch() ) {
+			$linecount=$linecount+1;
+			if ( length $channel < 1 ) {
+				$channel = 'no_channels';
+			}
+			my $chcxn = $channel . $cxn;
+			get_slave_status($cxn,$channel);
+		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
+			my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
+			if ( $wanted{slave_sql_status} ) {
+				push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
+			}
+			if ( $wanted{slave_io_status} ) {
+				push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
+			}
+		 }
+		 if ( $linecount < 1 ) { 
+			$channel = 'no_channels';
+			my $chcxn = $channel . $cxn;
+			get_slave_status($cxn,$channel);
+		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
+			my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
+			if ( $wanted{slave_sql_status} ) {
+				push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
+			}
+			if ( $wanted{slave_io_status} ) {
+				push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
+			}
+		 }
+	  	my $set  = $config{status_inc}->{val} ? inc(0, $cxn) : $vars{$cxn}->{$clock};
+		my $pre  = $vars{$cxn}->{$clock - 1} || $set;
+		if ( $wanted{master_status} ) {
+			push @master_status, extract_values($set, $set, $pre, 'master_status');
+		}
+	}
 
    my $first_table = 0;
    foreach my $tbl ( @visible ) {
@@ -9740,21 +9778,55 @@ sub get_master_slave_status {
          my $stmt = do_stmt($cxn, 'SHOW_MASTER_STATUS') or next;
          my $res = $stmt->fetchall_arrayref({})->[0];
          @{$vars}{ keys %$res } = values %$res;
-         $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS') or next;
-         $res = $stmt->fetchall_arrayref({});
-         if ( $res && @$res ) {
-            $res = $res->[0];
-            @{$vars}{ keys %$res } = values %$res;
-            $vars->{Slave_ok} =
-               (($res->{slave_sql_running} || 'Yes') eq 'Yes'
-               && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
-         }
-         else {
-            $vars->{Slave_ok} = 'Off';
-         }
+
       }
    }
 }
+
+# get_slave_status {{{3
+# Separated handling of slave status to support 5.7 and replication channels
+sub get_slave_status {
+   my ($cxn, $channel) = @_;
+   		 my $chcxn = $channel . $cxn;
+         $vars{$chcxn}->{$clock} ||= {};
+         my $vars = $vars{$chcxn}->{$clock};
+         $vars->{chcxn} = $chcxn;
+         $vars->{Uptime_hires} ||= get_uptime($chcxn);
+
+		 if ( $channel =~ /no_channels/ ) {
+         	my $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS') or next;
+         	my $res = $stmt->fetchall_arrayref({});
+        	if ( $res && @$res ) {
+       	    	$res = $res->[0];
+       	    	@{$vars}{ keys %$res } = values %$res;
+            	$vars->{Slave_ok} =
+               		(($res->{slave_sql_running} || 'Yes') eq 'Yes'
+               		&& ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
+         	}
+         	else {
+            	$vars->{Slave_ok} = 'Off';
+         	}
+	  	 } else {
+				 my $dbh = connect_to_db($cxn);
+				 my $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\''; 
+				 my $stmt = $dbh->prepare($sql ) ;
+				 $stmt->execute();
+         		 my $res = $stmt->fetchall_arrayref({});
+         		 if ( $res && @$res ) {
+         		    $res = $res->[0];
+         		    @{$vars}{ keys %$res } = values %$res;
+         		    $vars->{Slave_ok} =
+         		       (($res->{slave_sql_running} || 'Yes') eq 'Yes'
+         		       && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
+         		 }
+		         else {
+       		   		 $vars->{Slave_ok} = 'Off';
+        		 }
+			}
+      	}
+	
+   
+
 
 sub is_func {
    my ( $word ) = @_;
