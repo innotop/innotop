@@ -2,7 +2,7 @@
 use strict;
 use warnings FATAL => 'all';
 use English qw(-no_match_vars);
-use Test::More tests => 5;
+use Test::More tests => 6;
 use Data::Dumper;
 
 my $path;
@@ -33,7 +33,7 @@ my %versions = (
    $path . 't/innodb-status-006' => "5.5or-earlier",
    $path . 't/innodb-status-007' => "5.5or-earlier",
    $path . 't/innodb-status-008' => "5.6.12",
-   $path . 't/innodb-status-008' => "5.7"
+   $path . 't/innodb-status-009' => "5.7.7"
 );
 
 my %tests = (
@@ -1977,7 +1977,7 @@ my %tests = (
     IB_bp_buf_pool_hits => '1000',
     IB_bp_buf_pool_reads => '1000',
     IB_bp_buf_pool_size => '8191',
-    IB_bp_complete => '122157',
+    IB_bp_complete => '1',
     IB_bp_dict_mem_alloc => '130760',
     IB_bp_page_creates_sec => '0.05',
     IB_bp_page_reads_sec => '1.01',
@@ -2021,9 +2021,9 @@ my %tests = (
     IB_ib_hash_searches_s => '0.00',
     IB_ib_hash_table_size => '276671',
     IB_ib_inserts => undef,
-    IB_ib_merged_recs => 56536,
-    IB_ib_merges => 56536,
-    IB_ib_non_hash_searches_s => '1.06',
+    IB_ib_merged_recs => '0',
+    IB_ib_merges => '0',
+    IB_ib_non_hash_searches_s => '0.07',
     IB_ib_seg_size => '43',
     IB_ib_size => '1',
     IB_ib_used_cells => undef,
@@ -2141,10 +2141,10 @@ my %tests = (
     IB_sm_rw_excl_spins => '7253812',
     IB_sm_rw_shared_os_waits => '233780815',
     IB_sm_rw_shared_spins => '326628200',
-    IB_sm_signal_count => '195748281',
+    IB_sm_signal_count => undef,
     IB_sm_wait_array_size => 0,
     IB_sm_waits => [],
-    IB_timestring => '2013-06-19 13:47:37',
+    IB_timestring => '2015-06-09 13:52:05',
     IB_tx_complete => 1,
     IB_tx_history_list_len => '2401',
     IB_tx_is_truncated => 0,
@@ -2155,7 +2155,7 @@ my %tests = (
       {
         active_secs => 0,
         has_read_view => 0,
-        heap_size => 0,
+        heap_size => '1152',
         hostname => 'localhost',
         ip => '',
         lock_structs => 0,

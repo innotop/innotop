@@ -1195,7 +1195,7 @@ sub parse_lg_section {
    ( $section->{ 'last_chkp' } )
       = $fulltext =~ m/Last checkpoint at \s*(\d.*)$/m;
    @{$section}{ 'pending_log_writes', 'pending_chkp_writes' }
-      = $fulltext =~ m/$d pending log writes, $d pending chkp writes/;
+      = $fulltext =~ m/$d pending log (?:writes|flushes), $d pending chkp writes/;
    @{$section}{ 'log_ios_done', 'log_ios_s' }
       = $fulltext =~ m#$d log i/o's done, $f log i/o's/second#;
 
