@@ -5542,8 +5542,8 @@ sub display_L {
 
          my $cur_txns = $set->{IB_tx_transactions};
          my $pre_txns = $pre->{IB_tx_transactions} || $cur_txns;
-         my %cur_txns = map { $_->{mysql_thread_id} => $_ } @$cur_txns;
-         my %pre_txns = map { $_->{mysql_thread_id} => $_ } @$pre_txns;
+         my %cur_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$cur_txns;
+         my %pre_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$pre_txns;
          foreach my $txn ( @$cur_txns ) {
             foreach my $lock ( @{$txn->{locks}} ) {
                my %hash = map { $_ => $txn->{$_} } qw(txn_id mysql_thread_id lock_wait_time active_secs);
@@ -5853,8 +5853,8 @@ sub display_T {
       if ( $wanted{innodb_transactions} ) {
          my $cur_txns = $set->{IB_tx_transactions};
          my $pre_txns = $pre->{IB_tx_transactions} || $cur_txns;
-         my %cur_txns = map { $_->{mysql_thread_id} => $_ } @$cur_txns;
-         my %pre_txns = map { $_->{mysql_thread_id} => $_ } @$pre_txns;
+         my %cur_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$cur_txns;
+         my %pre_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$pre_txns;
          foreach my $thd_id ( sort keys %cur_txns ) {
             my $cur_txn = $cur_txns{$thd_id};
             my $pre_txn = $pre_txns{$thd_id} || $cur_txn;
