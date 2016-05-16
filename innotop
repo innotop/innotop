@@ -6802,12 +6802,9 @@ sub shorten {
       $num /= 1_024;
       ++$n;
    }
-   return sprintf(
-      $num =~ m/\./ || $n || $force
-         ? "%.${num_digits}f%s"
-         : '%d',
-      $num, ($pad,'k','M','G', 'T')[$n]);
-
+   return $num =~ m/\./ || $n || $force
+     ? sprintf("%.${num_digits}f%s", $num, ($pad,'k','M','G','T')[$n])
+     : $num;
 }
 
 # Utility functions {{{2
