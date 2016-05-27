@@ -3,16 +3,16 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.10.0
+Version:   1.11.0
 Release:   1%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
-Packager:  Frederic Descamps <lefred@percona.com>
+Packager:  yoku0825 <yoku0825@gmail.com>
 License:   GPL/Artistic
 Group:     System/Monitoring
-URL:       http://innotop.googlecode.com/
+URL:       https://github.com/innotop/innotop
 Buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 Buildarch: noarch
-Source:    http://%{name}.googlecode.com/files/%{name}-%{version}.tar.gz
+Source:    https://codeload.github.com/yoku0825/%{name}/tar.gz/%{version}
 BuildRequires: perl-ExtUtils-MakeMaker, perl-Test-Simple, make
 BuildRequires: perl-DBI, perl-DBD-MySQL, perl-TermReadKey
 Requires: perl-DBI, perl-DBD-MySQL, perl-TermReadKey
