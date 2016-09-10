@@ -7655,7 +7655,7 @@ sub connect_to_db {
 # Compares versions like 5.0.27 and 4.1.15-standard-log
 sub version_ge {
    my ( $dbh, $target ) = @_;
-   my $version = sprintf('%03d%03d%03d', $dbh->{mysql_serverinfo} =~ m/(\d+)/g);
+   my $version = sprintf('%03d%03d%03d', $dbh->{mysql_serverinfo} =~ m/^(\d+).(\d+).(\d+)/g);
    return $version ge sprintf('%03d%03d%03d', $target =~ m/(\d+)/g);
 }
 
