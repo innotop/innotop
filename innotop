@@ -22,7 +22,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.11.1';
+our $VERSION = '1.11.2';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -1913,6 +1913,7 @@ my %builtin_filters = (
       text => <<'      END',
          return ( !defined($set->{txn_status}) || $set->{txn_status} ne 'not started' )
              && ( !defined($set->{cmd})        || $set->{cmd} !~ m/Sleep|Binlog Dump/ )
+             && ( !defined($set->{state})      || $set->{state} !~ m/^handlersocket/  )
              && ( !defined($set->{info})       || $set->{info} =~ m/\S/               );
       END
       note => 'Removes processes which are not doing anything',
