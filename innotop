@@ -22,7 +22,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.10.0';
+our $VERSION = '1.11.1';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -1195,7 +1195,7 @@ sub parse_lg_section {
    ( $section->{ 'last_chkp' } )
       = $fulltext =~ m/Last checkpoint at \s*(\d.*)$/m;
    @{$section}{ 'pending_log_writes', 'pending_chkp_writes' }
-      = $fulltext =~ m/$d pending log writes, $d pending chkp writes/;
+      = $fulltext =~ m/$d pending log (?:writes|flushes), $d pending chkp writes/;
    @{$section}{ 'log_ios_done', 'log_ios_s' }
       = $fulltext =~ m#$d log i/o's done, $f log i/o's/second#;
 
@@ -5542,8 +5542,8 @@ sub display_L {
 
          my $cur_txns = $set->{IB_tx_transactions};
          my $pre_txns = $pre->{IB_tx_transactions} || $cur_txns;
-         my %cur_txns = map { $_->{mysql_thread_id} => $_ } @$cur_txns;
-         my %pre_txns = map { $_->{mysql_thread_id} => $_ } @$pre_txns;
+         my %cur_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$cur_txns;
+         my %pre_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$pre_txns;
          foreach my $txn ( @$cur_txns ) {
             foreach my $lock ( @{$txn->{locks}} ) {
                my %hash = map { $_ => $txn->{$_} } qw(txn_id mysql_thread_id lock_wait_time active_secs);
@@ -5853,8 +5853,8 @@ sub display_T {
       if ( $wanted{innodb_transactions} ) {
          my $cur_txns = $set->{IB_tx_transactions};
          my $pre_txns = $pre->{IB_tx_transactions} || $cur_txns;
-         my %cur_txns = map { $_->{mysql_thread_id} => $_ } @$cur_txns;
-         my %pre_txns = map { $_->{mysql_thread_id} => $_ } @$pre_txns;
+         my %cur_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$cur_txns;
+         my %pre_txns = map { $_->{mysql_thread_id} => $_ } grep { defined $_->{mysql_thread_id} } @$pre_txns;
          foreach my $thd_id ( sort keys %cur_txns ) {
             my $cur_txn = $cur_txns{$thd_id};
             my $pre_txn = $pre_txns{$thd_id} || $cur_txn;
@@ -6802,12 +6802,9 @@ sub shorten {
       $num /= 1_024;
       ++$n;
    }
-   return sprintf(
-      $num =~ m/\./ || $n || $force
-         ? "%.${num_digits}f%s"
-         : '%d',
-      $num, ($pad,'k','M','G', 'T')[$n]);
-
+   return $num =~ m/\./ || $n || $force
+     ? sprintf("%.${num_digits}f%s", $num, ($pad,'k','M','G','T')[$n])
+     : $num;
 }
 
 # Utility functions {{{2
