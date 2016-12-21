@@ -1824,6 +1824,7 @@ my %columns = (
    slave_open_temp_tables      => { hdr => 'Temp',                num => 1, label => 'Slave open temp tables' },
    slave_running               => { hdr => 'Repl',                num => 0, label => 'Slave running' },
    slave_sql_running           => { hdr => 'Slave-SQL',           num => 0, label => 'Whether the slave SQL thread is running' },
+   sort_time                   => { hdr => 'SortTimeLag',         num => 1, label => 'Time slave lags master sort' },
    slow                        => { hdr => 'Slow',                num => 1, label => 'How many slow queries', },
    space_id                    => { hdr => 'Space',               num => 1, label => 'Tablespace ID' },
    special                     => { hdr => 'Special',             num => 0, label => 'Special/Other info' },
@@ -1917,6 +1918,13 @@ my %builtin_filters = (
       END
       note => 'Removes processes which are not doing anything',
       tbls => [qw(innodb_transactions processlist)],
+   },
+   hide_connect => {
+      text => <<'      END',
+         return ( !defined($set->{cmd})        || $set->{cmd} !~ m/Connect/ );
+      END
+      note => 'Removes the slave processes from the list',
+      tbls => [qw(processlist)],
    },
    hide_slave_io => {
       text => <<'      END',
@@ -2667,13 +2675,14 @@ my %tbl_meta = (
          binlog_cache_overflow       => { src => '(Binlog_cache_disk_use||0)/(Binlog_cache_use||1)', trans => [ qw(percent) ] },
          executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' },
          server_uuid                 => { src => '(server_uuid||"N/A")' },
+         channel_name                => { src => 'channel_name', hdr => 'Channel'},
       },
-      visible => [ qw(cxn master_file master_pos binlog_cache_overflow executed_gtid_set server_uuid)],
+      visible => [ qw(cxn channel_name master_file master_pos binlog_cache_overflow executed_gtid_set server_uuid)],
       filters => [ qw(cxn_is_master) ],
       sort_cols => 'cxn',
       sort_dir => '1',
       innodb   => '',
-      group_by => [],
+      group_by => [qw(channel_name)],
       aggregate => 0,
    },
    pending_io => {
@@ -2755,7 +2764,7 @@ my %tbl_meta = (
          cnt             => { src => 'id',         minw => 0,  maxw => 0 },
       },
       visible => [ qw(cxn cmd cnt mysql_thread_id state user hostname db time info)],
-      filters => [ qw(hide_self hide_inactive hide_slave_io hide_event) ],
+      filters => [ qw(hide_self hide_inactive hide_slave_io hide_event hide_connect) ],
       sort_cols => '-time cxn hostname mysql_thread_id',
       sort_dir => '1',
       innodb   => '',
@@ -2901,7 +2910,7 @@ my %tbl_meta = (
       },
       visible => [ qw(cxn channel_name master_host master_uuid slave_io_running master_log_file relay_log_size read_master_log_pos slave_io_state)],
       filters => [ qw( cxn_is_slave ) ],
-      sort_cols => 'slave_io_running cxn',
+      sort_cols => 'slave_io_running channel_name',
       colors   => [
          { col => 'slave_io_running',  op => 'ne', arg => 'Yes', color => 'black on_red' },
       ],
@@ -2932,6 +2941,7 @@ my %tbl_meta = (
          replicate_wild_ignore_table => { src => 'replicate_wild_ignore_table' },
          skip_counter                => { src => 'skip_counter' },
          slave_sql_running           => { src => 'slave_sql_running', hdr => 'On?' },
+         sort_time                   => { src => 'int(seconds_behind_master/60)' },
          until_condition             => { src => 'until_condition' },
          until_log_file              => { src => 'until_log_file' },
          until_log_pos               => { src => 'until_log_pos' },
@@ -2945,7 +2955,7 @@ my %tbl_meta = (
       },
       visible => [ qw(cxn channel_name master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error retrieved_gtid_set executed_gtid_set)],
       filters => [ qw( cxn_is_slave ) ],
-      sort_cols => 'slave_sql_running cxn',
+      sort_cols => 'slave_sql_running -sort_time channel_name',
       sort_dir => '1',
       innodb   => '',
       colors   => [
@@ -3417,6 +3427,10 @@ my %modes = (
          s => {
             action => sub { choose_sort_cols('processlist'); },
             label => "Change the display's sort column",
+         },
+         t => {
+            action => sub { toggle_filter('processlist', 'hide_connect') },
+            label  => 'Toggle slave processes',
          },
          x => {
             action => sub { kill_query('QUERY') },
