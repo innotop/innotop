@@ -1579,6 +1579,8 @@ my %exprs = (
    BufPoolFill       => q{ $cur->{IB_bp_pages_total} / ($cur->{IB_bp_buf_pool_size} || 1) },
    ServerLoad        => q{ $cur->{Threads_connected}/(Questions||1)/Uptime_hires },
    Connection        => q{ max_connections || $cur->{Threads_connected} },
+   chcxn_2_cxn       => q{ if ( defined($cur->{cxn}) ) { return $cur->{cxn}; } else { my ($cha, $conn) = split ("=",$cur->{chcxn}) ;  return $conn; } },
+   chcxn_2_ch        => q{ if ( defined($cur->{channel_name}) ) { return $cur->{channel_name}; } else { my ($cha, $conn) = split ("=",$cur->{chcxn}) ; $cha = '' if ($cha = /no_channels/); return $cha || 'failed'; } },
    TxnTimeRemain     => q{ defined undo_log_entries && defined $pre->{undo_log_entries} && undo_log_entries < $pre->{undo_log_entries} ? undo_log_entries / (($pre->{undo_log_entries} - undo_log_entries)/((active_secs-$pre->{active_secs})||1))||1 : 0},
    SlaveCatchupRate  => ' defined $cur->{seconds_behind_master} && defined $pre->{seconds_behind_master} && $cur->{seconds_behind_master} < $pre->{seconds_behind_master} ? ($pre->{seconds_behind_master}-$cur->{seconds_behind_master})/($cur->{Uptime_hires}-$pre->{Uptime_hires}) : 0',
    QcacheHitRatio    => q{(Qcache_hits||0)/(((Com_select||0)+(Qcache_hits||0))||1)},
@@ -1824,6 +1826,7 @@ my %columns = (
    slave_open_temp_tables      => { hdr => 'Temp',                num => 1, label => 'Slave open temp tables' },
    slave_running               => { hdr => 'Repl',                num => 0, label => 'Slave running' },
    slave_sql_running           => { hdr => 'Slave-SQL',           num => 0, label => 'Whether the slave SQL thread is running' },
+   sort_time                   => { hdr => 'SortTimeLag',         num => 1, label => 'Time slave lags master sort' },
    slow                        => { hdr => 'Slow',                num => 1, label => 'How many slow queries', },
    space_id                    => { hdr => 'Space',               num => 1, label => 'Tablespace ID' },
    special                     => { hdr => 'Special',             num => 0, label => 'Special/Other info' },
@@ -1917,6 +1920,13 @@ my %builtin_filters = (
       END
       note => 'Removes processes which are not doing anything',
       tbls => [qw(innodb_transactions processlist)],
+   },
+   hide_connect => {
+      text => <<'      END',
+         return ( !defined($set->{cmd})        || $set->{cmd} !~ m/Connect/ );
+      END
+      note => 'Removes the slave processes from the list',
+      tbls => [qw(processlist)],
    },
    hide_slave_io => {
       text => <<'      END',
@@ -2659,7 +2669,7 @@ my %tbl_meta = (
       capt => 'Master Status',
       cust => {},
       cols => {
-         cxn                         => { src => 'cxn' },
+         cxn                         => { src => $exprs{chcxn_2_cxn}, hdr => 'CXN' },
          binlog_do_db                => { src => 'binlog_do_db' },
          binlog_ignore_db            => { src => 'binlog_ignore_db' },
          master_file                 => { src => 'file' },
@@ -2667,13 +2677,14 @@ my %tbl_meta = (
          binlog_cache_overflow       => { src => '(Binlog_cache_disk_use||0)/(Binlog_cache_use||1)', trans => [ qw(percent) ] },
          executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' },
          server_uuid                 => { src => '(server_uuid||"N/A")' },
+         channel_name                => { src => $exprs{chcxn_2_ch}, hdr => 'Channel'},
       },
-      visible => [ qw(cxn master_file master_pos binlog_cache_overflow executed_gtid_set server_uuid)],
+      visible => [ qw(cxn channel_name master_file master_pos binlog_cache_overflow executed_gtid_set server_uuid)],
       filters => [ qw(cxn_is_master) ],
       sort_cols => 'cxn',
       sort_dir => '1',
       innodb   => '',
-      group_by => [],
+      group_by => [qw(channel_name)],
       aggregate => 0,
    },
    pending_io => {
@@ -2755,7 +2766,7 @@ my %tbl_meta = (
          cnt             => { src => 'id',         minw => 0,  maxw => 0 },
       },
       visible => [ qw(cxn cmd cnt mysql_thread_id state user hostname db time info)],
-      filters => [ qw(hide_self hide_inactive hide_slave_io hide_event) ],
+      filters => [ qw(hide_self hide_inactive hide_slave_io hide_event hide_connect) ],
       sort_cols => '-time cxn hostname mysql_thread_id',
       sort_dir => '1',
       innodb   => '',
@@ -2880,7 +2891,7 @@ my %tbl_meta = (
       capt => 'Slave I/O Status',
       cust => {},
       cols => {
-         cxn                         => { src => 'cxn' },
+         cxn                         => { src => $exprs{chcxn_2_cxn}, hdr => 'CXN' },
          connect_retry               => { src => 'connect_retry' },
          master_host                 => { src => 'master_host', hdr => 'Master'},
          master_uuid                 => { src => '(master_uuid||"N/A")' },
@@ -2897,11 +2908,11 @@ my %tbl_meta = (
          relay_log_size              => { src => 'relay_log_space', trans => [qw(shorten)] },
          slave_io_running            => { src => 'slave_io_running', hdr => 'On?' },
          slave_io_state              => { src => 'slave_io_state', hdr => 'State' },
-         channel_name                => { src => 'channel_name', hdr => 'Channel'},
+         channel_name                => { src => $exprs{chcxn_2_ch}, hdr => 'Channel'},
       },
       visible => [ qw(cxn channel_name master_host master_uuid slave_io_running master_log_file relay_log_size read_master_log_pos slave_io_state)],
       filters => [ qw( cxn_is_slave ) ],
-      sort_cols => 'slave_io_running cxn',
+      sort_cols => 'slave_io_running channel_name cxn',
       colors   => [
          { col => 'slave_io_running',  op => 'ne', arg => 'Yes', color => 'black on_red' },
       ],
@@ -2914,7 +2925,7 @@ my %tbl_meta = (
       capt => 'Slave SQL Status',
       cust => {},
       cols => {
-         cxn                         => { src => 'cxn' },
+         cxn                         => { src => $exprs{chcxn_2_cxn}, hdr => 'CXN' },
          exec_master_log_pos         => { src => 'exec_master_log_pos', hdr => 'Master Pos' },
          last_errno                  => { src => 'last_errno' },
          last_error                  => { src => 'last_error' },
@@ -2932,6 +2943,7 @@ my %tbl_meta = (
          replicate_wild_ignore_table => { src => 'replicate_wild_ignore_table' },
          skip_counter                => { src => 'skip_counter' },
          slave_sql_running           => { src => 'slave_sql_running', hdr => 'On?' },
+         sort_time                   => { src => 'int(seconds_behind_master/60)' },
          until_condition             => { src => 'until_condition' },
          until_log_file              => { src => 'until_log_file' },
          until_log_pos               => { src => 'until_log_pos' },
@@ -2941,11 +2953,11 @@ my %tbl_meta = (
          slave_open_temp_tables      => { src => 'Slave_open_temp_tables' },
          retrieved_gtid_set          => { src => '(retrieved_gtid_set||"N/A")' },
          executed_gtid_set           => { src => '(executed_gtid_set||"N/A")' },
-         channel_name                => { src => 'channel_name', hdr => 'Channel'},
+         channel_name                => { src => $exprs{chcxn_2_ch}, hdr => 'Channel'},
       },
       visible => [ qw(cxn channel_name master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error retrieved_gtid_set executed_gtid_set)],
       filters => [ qw( cxn_is_slave ) ],
-      sort_cols => 'slave_sql_running cxn',
+      sort_cols => 'slave_sql_running -sort_time channel_name cxn',
       sort_dir => '1',
       innodb   => '',
       colors   => [
@@ -3417,6 +3429,10 @@ my %modes = (
          s => {
             action => sub { choose_sort_cols('processlist'); },
             label => "Change the display's sort column",
+         },
+         t => {
+            action => sub { toggle_filter('processlist', 'hide_connect') },
+            label  => 'Toggle slave processes',
          },
          x => {
             action => sub { kill_query('QUERY') },
@@ -5595,7 +5611,7 @@ sub display_M {
 			if ( length $channel < 1 ) {
 				$channel = 'no_channels';
 			}
-			my $chcxn = $channel . $cxn;
+			my $chcxn = $channel . '=' . $cxn;
 			get_slave_status($cxn,$channel);
 		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
 			my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
@@ -5608,7 +5624,7 @@ sub display_M {
 		 }
 		 if ( $linecount < 1 ) { 
 			$channel = 'no_channels';
-			my $chcxn = $channel . $cxn;
+			my $chcxn = $channel . '=' . $cxn;
 			get_slave_status($cxn,$channel);
 		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
 			my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
@@ -9784,7 +9800,7 @@ sub get_master_slave_status {
 # Separated handling of slave status to support 5.7 and replication channels
 sub get_slave_status {
    my ($cxn, $channel) = @_;
-   		 my $chcxn = $channel . $cxn;
+   		 my $chcxn = $channel . '=' . $cxn;
          $vars{$chcxn}->{$clock} ||= {};
          my $vars = $vars{$chcxn}->{$clock};
          $vars->{chcxn} = $chcxn;
