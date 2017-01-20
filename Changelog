@@ -7,7 +7,8 @@ Changelog for innotop:
 	* added sort on connection-name in display M, after sql/io running, seconds behind master and channel_name
 	* fixed bug that removed value for cxn and channel_name columns in display M
 	* added sort on replication delay, so that the replication-display will sort on slave_sql_running, timelag (in minutes) and channel_name. 
-	* Support for MariaDB 10.0 in InnoDB row (issue 93)
+	* support for MariaDB 10.0 in InnoDB row (issue 93)
+	* add SUM function for ONLY_FULL_GROUP_BY
 
 2013-07-12: version 1.9.1
 
