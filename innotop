@@ -2912,7 +2912,7 @@ my %tbl_meta = (
       },
       visible => [ qw(cxn channel_name master_host master_uuid slave_io_running master_log_file relay_log_size read_master_log_pos slave_io_state)],
       filters => [ qw( cxn_is_slave ) ],
-      sort_cols => 'slave_io_running channel_name',
+      sort_cols => 'slave_io_running channel_name cxn',
       colors   => [
          { col => 'slave_io_running',  op => 'ne', arg => 'Yes', color => 'black on_red' },
       ],
@@ -2957,7 +2957,7 @@ my %tbl_meta = (
       },
       visible => [ qw(cxn channel_name master_host master_uuid slave_sql_running time_behind_master slave_catchup_rate slave_open_temp_tables relay_log_pos last_error retrieved_gtid_set executed_gtid_set)],
       filters => [ qw( cxn_is_slave ) ],
-      sort_cols => 'slave_sql_running -sort_time channel_name',
+      sort_cols => 'slave_sql_running -sort_time channel_name cxn',
       sort_dir => '1',
       innodb   => '',
       colors   => [
