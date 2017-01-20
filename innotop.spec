@@ -3,7 +3,7 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.11.3
+Version:   1.11.4
 Release:   1%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
@@ -122,6 +122,9 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Fri Jan 20 2017 Frederic Descamps <lefred@lefred.be> - 1.11.4-1
+ - Package for github new tag 1.11.4
+
 * Fri Jul 12 2013 Frederic Descamps <lefred@lefred.be> - 1.9.1-1
  - Package for svn source code revision 113
 
