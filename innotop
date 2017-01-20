@@ -4516,8 +4516,10 @@ my %stmt_maker_for = (
       eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
          my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.INDEX_STATISTICS});
          if ( @$cols ) {
-            $sth = $dbh->prepare(q{SELECT /*innotop*/ L.TABLE_SCHEMA, L.TABLE_NAME, L.ROWS_READ, }
-               . q{SUM(R.ROWS_READ) AS ROWS_READ_FROM_INDEXES, L.ROWS_CHANGED, L.ROWS_CHANGED_X_INDEXES }
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ L.TABLE_SCHEMA, L.TABLE_NAME, }
+               . q{SUM(L.ROWS_READ) AS ROWS_READ, SUM(R.ROWS_READ) AS ROWS_READ_FROM_INDEXES, }
+               . q{SUM(L.ROWS_CHANGED) AS ROWS_CHANGED, }
+               . q{SUM(L.ROWS_CHANGED_X_INDEXES) AS ROWS_CHANGED_X_INDEXES }
                . q{FROM INFORMATION_SCHEMA.TABLE_STATISTICS AS L LEFT JOIN INFORMATION_SCHEMA.INDEX_STATISTICS AS R }
                . q{USING(TABLE_SCHEMA, TABLE_NAME) GROUP BY L.TABLE_SCHEMA, L.TABLE_NAME});
          }
