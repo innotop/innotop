@@ -4196,6 +4196,7 @@ eval {
 if ( $EVAL_ERROR || $opts{n} ) {
    # If there was an error, manufacture my own colored() function that does no
    # coloring.
+   undef &colored;
    *colored = sub { pop @_; @_; };
 }
 
