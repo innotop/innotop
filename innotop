@@ -1577,7 +1577,7 @@ my %exprs = (
    NumTxns           => q{scalar @{ IB_tx_transactions } },
    DirtyBufs         => q{ $cur->{IB_bp_pages_modified} / ($cur->{IB_bp_buf_pool_size} || 1) },
    BufPoolFill       => q{ $cur->{IB_bp_pages_total} / ($cur->{IB_bp_buf_pool_size} || 1) },
-   ServerLoad        => q{ $cur->{Threads_connected}/(Questions||1)/Uptime_hires },
+   ServerLoad        => q{ $cur->{Threads_connected}/(Queries||1)/Uptime_hires },
    Connection        => q{ max_connections || $cur->{Threads_connected} },
    chcxn_2_cxn       => q{ if ( defined($cur->{cxn}) ) { return $cur->{cxn}; } else { my ($cha, $conn) = split ("=",$cur->{chcxn}) ;  return $conn; } },
    chcxn_2_ch        => q{ if ( defined($cur->{channel_name}) ) { return $cur->{channel_name}; } else { my ($cha, $conn) = split ("=",$cur->{chcxn}) ; $cha = '' if ($cha = /no_channels/); return $cha || 'failed'; } },
@@ -1585,10 +1585,10 @@ my %exprs = (
    SlaveCatchupRate  => ' defined $cur->{seconds_behind_master} && defined $pre->{seconds_behind_master} && $cur->{seconds_behind_master} < $pre->{seconds_behind_master} ? ($pre->{seconds_behind_master}-$cur->{seconds_behind_master})/($cur->{Uptime_hires}-$pre->{Uptime_hires}) : 0',
    QcacheHitRatio    => q{(Qcache_hits||0)/(((Com_select||0)+(Qcache_hits||0))||1)},
    QueryDetail       => q{sprintf("%2d/%2d/%2d/%2d",
-                           ((Com_select||0)+(Qcache_hits||0))/(Questions||1)*100,
-                            ((Com_insert||0)+(Com_replace||0))/(Questions||1)*100,
-                            (Com_update||0)/(Questions||1)*100,
-                            (Com_delete||0)/(Questions||1)*100,
+                           ((Com_select||0)+(Qcache_hits||0))/(Queries||1)*100,
+                            ((Com_insert||0)+(Com_replace||0))/(Queries||1)*100,
+                            (Com_update||0)/(Queries||1)*100,
+                            (Com_delete||0)/(Queries||1)*100,
 )},
 );
 
@@ -1784,7 +1784,7 @@ my %columns = (
    query_id                    => { hdr => 'Query ID',            num => 1, label => 'Query ID' },
    query_status                => { hdr => 'Query Status',        num => 0, label => 'The query status' },
    query_text                  => { hdr => 'Query Text',          num => 0, label => 'The query text' },
-   questions                   => { hdr => 'Questions',           num => 1, label => 'How many queries the server has gotten', },
+   queries                     => { hdr => 'Queries',             num => 1, label => 'How many queries the server has gotten', },
    read_master_log_pos         => { hdr => 'Read Master Pos',     num => 1, label => 'Read master log position' },
    read_views_open             => { hdr => 'Rd Views',            num => 1, label => 'Number of read views open' },
    reads_pending               => { hdr => 'Pending Reads',       num => 1, label => 'Reads pending' },
@@ -1991,7 +1991,7 @@ my %var_sets = (
    general => {
       text => join(
          ', ',
-         'set_precision(Questions/Uptime_hires) as QPS',
+         'set_precision(Queries/Uptime_hires) as QPS',
          'set_precision(Com_commit/Uptime_hires) as Commit_PS',
          'set_precision((Com_rollback||0)/(Com_commit||1)) as Rollback_Commit',
          'set_precision(('
@@ -2015,7 +2015,7 @@ my %var_sets = (
    commands => {
       text => join(
          ', ',
-         qw(Uptime Questions Com_delete Com_delete_multi Com_insert
+         qw(Uptime Queries Com_delete Com_delete_multi Com_insert
          Com_insert_select Com_replace Com_replace_select Com_select Com_update
          Com_update_multi)
       ),
@@ -2139,7 +2139,7 @@ my %mvs = (
    Com_insert   => 50,
    Com_update   => 50,
    Com_delete   => 50,
-   Questions    => 100,
+   Queries      => 100,
 );
 
 # ###########################################################################
@@ -2797,8 +2797,8 @@ my %tbl_meta = (
       cust => {},
       cols => {
          cxn            => { src => 'cxn' },
-         questions      => { src => 'Questions' },
-         qps            => { src => 'Questions/Uptime_hires',               dec => 1, trans => [qw(shorten)] },
+         queries        => { src => 'Queries' },
+         qps            => { src => 'Queries/Uptime_hires',                 dec => 1, trans => [qw(shorten)] },
          load           => { src => $exprs{ServerLoad},                     dec => 1, trans => [qw(shorten)] },
          connections    => { src => $exprs{Connection},                     dec => 1, trans => [qw(shorten)] },
          slow           => { src => 'Slow_queries',                         dec => 1, trans => [qw(shorten)] },
@@ -3070,7 +3070,7 @@ my %tbl_meta = (
       cols => {
          cxn                => { src => 'cxn' },
          uptime             => { src => 'Uptime', trans => [qw(fuzzy_time)] },
-         qps                => { src => 'Questions/Uptime_hires', dec => 1, trans => [qw(shorten)] },
+         qps                => { src => 'Queries/Uptime_hires', dec => 1, trans => [qw(shorten)] },
          spark_qps          => { src => 'SPARK_qps' },
          run                => { src => 'User_threads_running' },
          spark_run          => { src => 'SPARK_run' },
@@ -7282,7 +7282,7 @@ sub create_statusbar {
 
       # Format server uptime human-readably, calculate QPS...
       my $uptime = fuzzy_time( $vars->{Uptime_hires} );
-      my $qps    = ($inc->{Questions}||0) / ($inc->{Uptime_hires}||1);
+      my $qps    = ($inc->{Queries}||0) / ($inc->{Uptime_hires}||1);
       my $ibinfo = '';
 
       if ( exists $vars->{IB_last_secs} ) {
@@ -9349,7 +9349,7 @@ sub get_status_info {
             my @prev_run = ($pre->{SPARK_store_run} || '') =~ m/(\S+)/g;
 
             # Find out the values; throw away if too many; sparkify; store.
-            my $this_qps = (($vars->{Questions} || 0) - ($pre->{Questions} || 0))/
+            my $this_qps = (($vars->{Queries} || 0) - ($pre->{Queries} || 0))/
                            ($vars->{Uptime_hires} - $pre->{Uptime_hires});
             push @prev_qps, $this_qps;
             shift @prev_qps if @prev_qps > $config{spark}->{val};
@@ -11560,12 +11560,12 @@ Here's a concrete example, taken from the header table L<"q_header"> in L<"Q:
 Query List"> mode.  This expression calculates the qps, or Queries Per Second,
 column's values, from the values returned by SHOW STATUS:
 
- Questions/Uptime_hires
+ Queries/Uptime_hires
 
 innotop decides both words are barewords, and transforms this expression into
 the following Perl code:
 
- $set->{Questions}/$set->{Uptime_hires}
+ $set->{Queries}/$set->{Uptime_hires}
 
 When surrounded by the rest of the subroutine's code, this is executable Perl
 that calculates a high-resolution queries-per-second value.
@@ -11737,7 +11737,7 @@ that you had a huge table with one column per variable returned from those
 statements.  That's the data source for variable sets.  You can now query this
 data source just like you'd expect.  For example:
 
- Questions, Uptime, Questions/Uptime as QPS
+ Queries, Uptime, Queries/Uptime as QPS
 
 Behind the scenes innotop will split that variable set into three expressions,
 compile them and turn them into a table definition, then extract as usual.  This
@@ -11755,13 +11755,13 @@ You may want to use some of the functions listed in L<"TRANSFORMATIONS"> to help
 format the results.  In particular, L<"set_precision"> is often useful to limit
 the number of digits you see.  Extending the above example, here's how:
 
- Questions, Uptime, set_precision(Questions/Uptime) as QPS
+ Queries, Uptime, set_precision(Queries/Uptime) as QPS
 
 Actually, this still needs a little more work.  If your L<"interval"> is less
 than one second, you might be dividing by zero because Uptime is incremental in
 this mode by default.  Instead, use Uptime_hires:
 
- Questions, Uptime, set_precision(Questions/Uptime_hires) as QPS
+ Queries, Uptime, set_precision(Queries/Uptime_hires) as QPS
 
 This example is simple, but it shows how easy it is to choose which variables
 you want to monitor.
