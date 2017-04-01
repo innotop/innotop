@@ -1,0 +1,44 @@
+innotop (1.11.4-1) stable; urgency=low
+
+  * Package for github new tag 1.11.4
+
+ -- Frederic Descamps <lefred@lefred.be>  Fri, 20 Jan 2017 22:21:03 +0000
+
+innotop (1.9.1-1) stable; urgency=low
+
+  * Package for svn source code revision 113 
+
+ -- Frederic Descamps <lefred@lefred.be>  Fri, 12 Jul 2013 22:21:03 +0000
+
+innotop (1.9.0-3) stable; urgency=low
+
+  * Add MySQL 5.6 support (patch https://code.google.com/p/innotop/issues/detail?id=83)
+  * Add extra build requirement packages
+
+ -- Frederic Descamps <lefred@lefred.be>  Thu, 11 Jul 2013 22:21:03 +0000
+
+innotop (1.9.0-2) stable; urgency=low
+
+  * fix perl-TermReadKey requirement - typo
+
+ -- Frederic Descamps <lefred@lefred.be>  Fri, 14 Sep 2012 22:21:03 +0000
+
+innotop (between 1.9.0-2 and after 1.0) stable; urgency=low
+
+  * add build requirements
+
+ -- Frederic Descamps <lefred@lefred.be>  Fri, 7 Sep 2012 22:21:03 +0000
+
+innotop (1.0-1) stable; urgency=low
+
+  * Updated the spec file to reflect the changes in 1.0, fixed the URLs
+  * removed the reference to innotop.html, added INSTALL to the docs instead 
+
+ -- Lenz Grimmer <lenz@grimmer.com>  Mon, 8 Jan 2007 22:21:03 +0000
+
+innotop (0.1.160-1) stable; urgency=low
+
+  * Initial spec file for version 0.1.160
+
+ -- Lenz Grimmer <lenz@grimmer.com>  Thu, 16 Nov 2006 22:21:03 +0000
+
