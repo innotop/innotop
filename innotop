@@ -4635,9 +4635,11 @@ my %stmt_maker_for = (
    },
    GET_CHANNELS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare(version_ge( $dbh, '5.7.0' )
-             ? 'select CHANNEL_NAME from performance_schema.replication_applier_status where CHANNEL_NAME regexp "^[a-zA-Z].*";'
-             : 'select "no_channels"');
+      if ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) { 
+             return $dbh->prepare('select CHANNEL_NAME from performance_schema.replication_applier_status where CHANNEL_NAME regexp "^[a-zA-Z].*";');
+      } else {
+       return $dbh->prepare('select "no_channels"');
+      }
    },
    KILL_CONNECTION => sub {
       my ( $dbh ) = @_;
@@ -9804,26 +9806,26 @@ sub get_master_slave_status {
 # Separated handling of slave status to support 5.7 and replication channels
 sub get_slave_status {
    my ($cxn, $channel) = @_;
-   		 my $chcxn = $channel . '=' . $cxn;
+   	 my $chcxn = $channel . '=' . $cxn;
          $vars{$chcxn}->{$clock} ||= {};
          my $vars = $vars{$chcxn}->{$clock};
          $vars->{chcxn} = $chcxn;
          $vars->{Uptime_hires} ||= get_uptime($chcxn);
 
-		 if ( $channel =~ /no_channels/ ) {
+	 if ( $channel =~ /no_channels/ ) {
          	my $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS') or next;
          	my $res = $stmt->fetchall_arrayref({});
-        	if ( $res && @$res ) {
+       	   if ( $res && @$res ) {
        	    	$res = $res->[0];
        	    	@{$vars}{ keys %$res } = values %$res;
             	$vars->{Slave_ok} =
                		(($res->{slave_sql_running} || 'Yes') eq 'Yes'
                		&& ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
-         	}
-         	else {
+       	   }
+       	   else {
             	$vars->{Slave_ok} = 'Off';
-         	}
-	  	 } else {
+           }
+  	 } else {
 				 my $dbh = connect_to_db($cxn);
 				 my $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\''; 
 				 my $stmt = $dbh->prepare($sql ) ;
