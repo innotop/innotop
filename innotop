@@ -4635,7 +4635,10 @@ my %stmt_maker_for = (
    },
    GET_CHANNELS => sub {
       my ( $dbh ) = @_;
-      if ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) { 
+      if (version_ge( $dbh, '10.0.2' )) {
+       # Not supported or MariaDB specific way to get channel list.
+         return $dbh->prepare('select "no_channels"');
+      } elsif ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^8/ ) ) { 
              return $dbh->prepare('select CHANNEL_NAME from performance_schema.replication_applier_status where CHANNEL_NAME regexp "^[a-zA-Z].*";');
       } else {
        return $dbh->prepare('select "no_channels"');
