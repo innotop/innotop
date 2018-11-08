@@ -471,7 +471,7 @@ sub parse_status_text {
    # too many locks to print, the output might be truncated)
 
    my $time_text;
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^10\.[012]\./) ) {
+   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.0\./) || ($mysqlversion =~ /^10\.[012]\./) ) {
       ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-fx]* INNODB MONITOR OUTPUT/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
    } else {
@@ -899,7 +899,7 @@ sub parse_dl_section {
    my ( $ts ) = $fulltext =~ m/^$s$/m;
    return 0 unless $ts;
 
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^10\.[012]\./) ) {
+   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.0\./) || ($mysqlversion =~ /^10\.[012]\./) ) {
       $dl->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
    }
    else {
@@ -1177,6 +1177,12 @@ sub parse_ro_section {
       = $fulltext =~ m#^$f inserts/s, $f updates/s, $f deletes/s, $f reads/s$#m;
    $section->{'main_thread_proc_no'} ||= 0;
 
+   if (!(@{$section}{main_thread_proc_no}) && !(@{$section}{main_thread_id}) && !(@{$section}{main_thread_state}))
+   {
+     ### MySQL 8.0 style.
+     @{$section}{ 'main_thread_proc_no', 'main_thread_id', 'main_thread_state' }
+        = $fulltext =~ m/^Process ID=$d, Main thread ID=$d\s*,\s+state=\s?(.*)$/m;
+   }
    map { $section->{$_} ||= 0 } qw(read_views_open n_reserved_extents);
    delete $section->{'fulltext'} unless $debug;
    return 1;
@@ -1224,6 +1230,7 @@ sub parse_ib_section {
       @{$section}{ 'merged_recs', 'merges' } = (0, 0);
    }
 
+   ### TODO: how to behave when innodb_adaptive_hash_index_parts > 1?
    @{$section}{ 'hash_table_size', 'used_cells', 'bufs_in_node_heap' }
       = $fulltext =~ m/^Hash table size $d(?:, used cells $d)?, node heap has $d buffer\(s\)$/m;
    @{$section}{ 'hash_searches_s', 'non_hash_searches_s' }
@@ -1287,6 +1294,7 @@ sub parse_sm_section {
    @{$section}{ 'rw_shared_spins', 'rw_shared_os_waits', 'rw_excl_spins', 'rw_excl_os_waits' }
       = $fulltext =~ m/^RW-shared spins $d, OS waits $d; RW-excl spins $d, OS waits $d$/m;
    if ( ! defined $section->{rw_shared_spins} ) {
+      ### TODO: RW-sx
       @{$section}{ 'rw_shared_spins', 'rw_shared_os_waits'}
          = $fulltext =~ m/^RW-shared spins $d, rounds \d+, OS waits $d$/m;
       @{$section}{ 'rw_excl_spins', 'rw_excl_os_waits' }
@@ -1309,8 +1317,10 @@ sub parse_bp_section {
    my $fulltext = $section->{'fulltext'};
 
    # Grab the info
-   @{$section}{ 'total_mem_alloc', 'add_pool_alloc' }
-      = $fulltext =~ m/^Total memory allocated $d; in additional pool allocated $d$/m;
+   @{$section}{ 'total_mem_alloc' }
+      = $fulltext =~ m/^Total (?:large )?memory allocated $d/m;
+   @{$section}{ 'add_pool_alloc' }
+      = $fulltext =~ m/in additional pool allocated $d$/m;
    @{$section}{'dict_mem_alloc'}     = $fulltext =~ m/Dictionary memory allocated $d/;
    @{$section}{'awe_mem_alloc'}      = $fulltext =~ m/$d MB of AWE memory/;
    @{$section}{'buf_pool_size'}      = $fulltext =~ m/^Buffer pool size\s*$d$/m;
@@ -1331,7 +1341,7 @@ sub parse_bp_section {
       @{$section}{'buf_pool_hit_rate'}
          = $fulltext =~ m{Buffer pool hit rate (\d+ / \d+)}m;
    }
-   @{$section}{'reads_pending'} = $fulltext =~ m/^Pending reads $d/m;
+   @{$section}{'reads_pending'} = $fulltext =~ m/^Pending reads\s+$d/m;
    @{$section}{'writes_pending_lru', 'writes_pending_flush_list', 'writes_pending_single_page' }
       = $fulltext =~ m/^Pending writes: LRU $d, flush list $d, single page $d$/m;
 
@@ -1371,7 +1381,7 @@ sub parse_io_section {
    @{$section}{ 'pending_normal_aio_reads', 'pending_aio_writes' }
       = $fulltext =~ m/^Pending normal aio reads: $d(?: [^\]]*\])?, aio writes: $d/m;
    @{$section}{ 'pending_ibuf_aio_reads', 'pending_log_ios', 'pending_sync_ios' }
-      = $fulltext =~ m{^ ibuf aio reads: $d, log i/o's: $d, sync i/o's: $d$}m;
+      = $fulltext =~ m{^ ibuf aio reads:\s?(\d+)?, log i/o's:\s?(\d+)?, sync i/o's:\s?(\d+)?$}m;
    @{$section}{ 'flush_type', 'pending_log_flushes', 'pending_buffer_pool_flushes' }
       = $fulltext =~ m/^Pending flushes \($w\) log: $d; buffer pool: $d$/m;
    @{$section}{ 'os_file_reads', 'os_file_writes', 'os_fsyncs' }
