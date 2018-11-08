@@ -1,0 +1,23 @@
+Source: innotop
+Section: database
+Priority: optional
+Maintainer: Emily Slocombe <eslocombe@gmail.com>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.4
+Homepage: https://github.com/innotop/innotop
+
+Package: innotop
+Architecture: any
+Depends:
+ libdbd-mysql-perl (>= 1.2202),
+ libdbi-perl,
+ libterm-readkey-perl,
+ ${perl:Depends}, 
+ ${shlibs:Depends}, 
+ ${misc:Depends}
+Description: Innotop
+ MySQL and InnoDB transaction/status monitor.  Like 'top' for MySQL.  Displays
+ queries, InnoDB transactions, lock waits, deadlocks, foreign key errors, open
+ tables, replication status, buffer information, row operations, logs, I/O
+ operations, load graph, and more.  You can monitor many servers at once with
+ innotop.
