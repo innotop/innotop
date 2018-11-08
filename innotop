@@ -7205,6 +7205,8 @@ sub distill {
          my ($prefix, undef) = split(/\./, $prev);
          $prev = $t;
          if ( $prefix ) {
+            $prefix=~s/\(/\\\(/;
+            $prefix=~s/\)/\\\)/;
             $t =~ s/^$prefix\./-./;
          }
          $query .= " " . $t;
