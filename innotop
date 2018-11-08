@@ -5623,6 +5623,7 @@ sub display_M {
 		 my $linecount=0;
 		 my $sth = do_stmt($cxn, 'GET_CHANNELS');
 		 my ( $channel );
+       next if (!$sth);
 	     $sth->execute();
 	     $sth->bind_columns( \$channel );
 		 while ( $sth->fetch() ) {
