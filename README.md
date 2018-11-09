@@ -1,4 +1,7 @@
 [![Stories in Ready](https://badge.waffle.io/innotop/innotop.png?label=ready&title=Ready)](https://waffle.io/innotop/innotop)
+
+![innotop_logo2](https://user-images.githubusercontent.com/609675/48270427-5760d500-e43a-11e8-847b-240c27a957e0.png)
+
 innotop
 =======
 
