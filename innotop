@@ -4546,7 +4546,7 @@ my %stmt_maker_for = (
          my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS});
          if ( @$cols ) {
             eval {  # This can fail if PERFORMANCE_SCHEMA isn't enabled or performance_schema.threads doesn't exist
-               my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM performance_schema.threads});
+               my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ VARIABLES WHERE variable_name='PERFORMANCE_SCHEMA' AND value='ON'});
                if ( @$ps_threads ) {  # PERFORMANCE_SCHEMA is ON / enabled
                   $sth = $dbh->prepare(q{
                      SELECT /*innotop*/
@@ -4704,9 +4704,9 @@ my %stmt_maker_for = (
       # and use the TIME_MS column (in Percona Server) if that exists.
       my $sth;
       eval {  # This can fail if PERFORMANCE_SCHEMA isn't enabled or performance_schema.threads doesn't exist
-         my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM performance_schema.threads});
+         my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ VARIABLES WHERE variable_name='PERFORMANCE_SCHEMA' AND value='ON'});
          if ( @$ps_threads ) {  # PERFORMANCE_SCHEMA is ON / enabled
-            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID ID, PROCESSLIST_USER USER, PROCESSLIST_HOST HOST, PROCESSLIST_DB DB, PROCESSLIST_COMMAND COMMAND, PROCESSLIST_TIME TIME, PROCESSLIST_STATE STATE, PROCESSLIST_INFO INFO FROM performance_schema.threads WHERE TYPE='FOREGROUND' AND PROCESSLIST_ID IS NOT NULL AND PROCESSLIST_USER IS NOT NULL AND PROCESSLIST_HOST IS NOT NULL});
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID Id, PROCESSLIST_USER User, PROCESSLIST_HOST Host, PROCESSLIST_DB db, PROCESSLIST_COMMAND Command, PROCESSLIST_TIME Time, PROCESSLIST_STATE State, PROCESSLIST_INFO Info FROM performance_schema.threads WHERE PROCESSLIST_USER IS NOT NULL});
          }
       };
       if ( !$sth ) {
@@ -4726,9 +4726,9 @@ my %stmt_maker_for = (
       # SQL statements. http://bugs.mysql.com/66401
       my $sth;
       eval {  # This can fail if PERFORMANCE_SCHEMA isn't enabled or performance_schema.threads doesn't exist
-         my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM performance_schema.threads});
+         my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ VARIABLES WHERE variable_name='PERFORMANCE_SCHEMA' AND value='ON'});
          if ( @$ps_threads ) {  # PERFORMANCE_SCHEMA is ON / enabled
-            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID ID, PROCESSLIST_USER USER, PROCESSLIST_HOST HOST, PROCESSLIST_DB DB, PROCESSLIST_COMMAND COMMAND, PROCESSLIST_TIME TIME, PROCESSLIST_STATE STATE, PROCESSLIST_INFO INFO FROM performance_schema.threads WHERE TYPE='FOREGROUND' AND PROCESSLIST_ID IS NOT NULL AND PROCESSLIST_USER IS NOT NULL AND PROCESSLIST_HOST IS NOT NULL});
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID Id, PROCESSLIST_USER User, PROCESSLIST_HOST Host, PROCESSLIST_DB db, PROCESSLIST_COMMAND Command, PROCESSLIST_TIME Time, PROCESSLIST_STATE State, PROCESSLIST_INFO Info FROM performance_schema.threads WHERE PROCESSLIST_USER IS NOT NULL});
          }
       };
       $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
