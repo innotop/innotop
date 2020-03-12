@@ -6093,7 +6093,7 @@ sub display_explain {
 
    if ( $query ) {
 
-      my $part = version_ge($dbhs{$cxn}->{dbh}, '5.1.5') ? 'PARTITIONS' : '';
+      my $part = version_ge($dbhs{$cxn}->{dbh}, '5.1.5') && ($dbhs{$cxn}->{dbh}->{mysql_serverinfo} !~ /^8\.0\./) ? 'PARTITIONS' : '';
       $query = "EXPLAIN $part\n" . $query;
 
       eval {
