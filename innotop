@@ -4706,7 +4706,7 @@ my %stmt_maker_for = (
       eval {  # This can fail if PERFORMANCE_SCHEMA isn't enabled or performance_schema.threads doesn't exist
          my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ VARIABLES WHERE variable_name='PERFORMANCE_SCHEMA' AND value='ON'});
          if ( @$ps_threads ) {  # PERFORMANCE_SCHEMA is ON / enabled
-            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID Id, PROCESSLIST_USER User, PROCESSLIST_HOST Host, PROCESSLIST_DB db, PROCESSLIST_COMMAND Command, PROCESSLIST_TIME Time, PROCESSLIST_STATE State, PROCESSLIST_INFO Info FROM performance_schema.threads WHERE PROCESSLIST_USER IS NOT NULL});
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID Id, if(TYPE='FOREGROUND', PROCESSLIST_USER, 'system user') User, PROCESSLIST_HOST Host, PROCESSLIST_DB db, PROCESSLIST_COMMAND Command, PROCESSLIST_TIME Time, PROCESSLIST_STATE State, PROCESSLIST_INFO Info FROM performance_schema.threads WHERE PROCESSLIST_USER IS NOT NULL});
          }
       };
       if ( !$sth ) {
@@ -4728,7 +4728,7 @@ my %stmt_maker_for = (
       eval {  # This can fail if PERFORMANCE_SCHEMA isn't enabled or performance_schema.threads doesn't exist
          my $ps_threads = $dbh->selectall_arrayref(q{SHOW /*innotop*/ VARIABLES WHERE variable_name='PERFORMANCE_SCHEMA' AND value='ON'});
          if ( @$ps_threads ) {  # PERFORMANCE_SCHEMA is ON / enabled
-            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID Id, PROCESSLIST_USER User, PROCESSLIST_HOST Host, PROCESSLIST_DB db, PROCESSLIST_COMMAND Command, PROCESSLIST_TIME Time, PROCESSLIST_STATE State, PROCESSLIST_INFO Info FROM performance_schema.threads WHERE PROCESSLIST_USER IS NOT NULL});
+            $sth = $dbh->prepare(q{SELECT /*innotop*/ PROCESSLIST_ID Id, if(TYPE='FOREGROUND', PROCESSLIST_USER, 'system user') User, PROCESSLIST_HOST Host, PROCESSLIST_DB db, PROCESSLIST_COMMAND Command, PROCESSLIST_TIME Time, PROCESSLIST_STATE State, PROCESSLIST_INFO Info FROM performance_schema.threads WHERE PROCESSLIST_USER IS NOT NULL});
          }
       };
       $sth ||= $dbh->prepare('SHOW /*innotop*/ FULL PROCESSLIST');
