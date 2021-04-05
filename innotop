@@ -1509,6 +1509,13 @@ my @opt_spec = (
    { s => 'port|P=i',   d => 'Port number to use for connection' },
    { s => 'socket|S=s', d => 'MySQL socket to use for connection' },
    { s => 'timestamp|t+', d => 'Print timestamp in -n mode (1: per iter; 2: per line)' },
+   { s => 'ssl', d => 'Passed to mysql_ssl', c => 'mysql_ssl' },
+   { s => 'ssl_ca_file=s', d => 'Passed to mysql_ssl_ca_file', c => 'mysql_ssl_ca_file' },
+   { s => 'ssl_ca_path=s', d => 'Passed to mysql_ssl_ca_path', c => 'mysql_ssl_ca_path' },
+   { s => 'ssl_verify_server_cert', d => 'Passed to mysql_ssl_verify_server_cert', c => 'mysql_ssl_verify_server_cert' },
+   { s => 'ssl_client_key=s', d => 'Passed to mysql_ssl_client_key', c => 'mysql_ssl_client_key' },
+   { s => 'ssl_client_cert=s', d => 'Passed to mysql_ssl_client_cert', c => 'mysql_ssl_client_cert' },
+   { s => 'ssl_cipher=s', d => 'Passed to mysql_ssl_cipher', c => 'mysql_ssl_cipher' },
 );
 
 # This is the container for the command-line options' values to be stored in
@@ -7752,9 +7759,22 @@ sub get_new_db_connection {
       }
    }
 
+   my $defaults = {
+      AutoCommit        => 1,
+      RaiseError        => 1,
+      PrintError        => 0,
+   };
+   $defaults->{mysql_ssl} = $opts{ssl} if $opts{ssl};
+   $defaults->{mysql_ssl_ca_file} = $opts{ssl_ca_file} if $opts{ssl_ca_file};
+   $defaults->{mysql_ssl_ca_path} = $opts{ssl_ca_path} if $opts{ssl_ca_path};
+   $defaults->{mysql_ssl_verify_server_cert} = $opts{ssl_verify_server_cert} if $opts{ssl_verify_server_cert};
+   $defaults->{mysql_ssl_client_key} = $opts{ssl_client_key} if $opts{ssl_client_key};
+   $defaults->{mysql_ssl_client_cert} = $opts{ssl_client_cert} if $opts{ssl_client_cert};
+   $defaults->{mysql_ssl_cipher} = $opts{ssl_cipher} if $opts{ssl_cipher};
+
    my $dbh = DBI->connect(
       $dsn->{dsn}, $dsn->{user}, $dsn->{pass},
-      { RaiseError => 1, PrintError => 0, AutoCommit => 1 });
+      $defaults);
    $dbh->{InactiveDestroy} = 1 unless $destroy; # Can't be set in $db_options
    $dbh->{FetchHashKeyName} = 'NAME_lc'; # Lowercases all column names for fetchrow_hashref
    return $dbh;
