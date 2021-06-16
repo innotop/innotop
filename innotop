@@ -4581,6 +4581,7 @@ my %stmt_maker_for = (
                   LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST rp ON rp.id = r.trx_mysql_thread_id
             });
           } else {
+            ### 5.5, 5.6, 5.7
             $sth = $dbh->prepare(q{
                SELECT /*innotop*/
                   r.trx_mysql_thread_id                            AS waiting_thread,
@@ -4610,7 +4611,41 @@ my %stmt_maker_for = (
             });
           }
          }
-      };
+      };  ### End of eval SHOW COLUMNS FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS
+
+      if (!($sth) && version_ge($dbh, '8.0.1')) {
+        ### SHOW COLUMNS FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS fails MySQL 8.0.1 and later(table had been removed)
+        eval {
+          $sth = $dbh->prepare(q{
+            SELECT /*innotop*/
+               r.trx_mysql_thread_id                            AS waiting_thread,
+               r.trx_query                                      AS waiting_query,
+               r.trx_rows_modified                              AS waiting_rows_modified,
+               TIMESTAMPDIFF(SECOND, r.trx_started, NOW())      AS waiting_age,
+               TIMESTAMPDIFF(SECOND, r.trx_wait_started, NOW()) AS waiting_wait_secs,
+               rp.user                                          AS waiting_user,
+               rp.host                                          AS waiting_host,
+               rp.db                                            AS waiting_db,
+               b.trx_mysql_thread_id                            AS blocking_thread,
+               b.trx_query                                      AS blocking_query,
+               b.trx_rows_modified                              AS blocking_rows_modified,
+               TIMESTAMPDIFF(SECOND, b.trx_started, NOW())      AS blocking_age,
+               TIMESTAMPDIFF(SECOND, b.trx_wait_started, NOW()) AS blocking_wait_secs,
+               bp.user                                          AS blocking_user,
+               bp.host                                          AS blocking_host,
+               bp.db                                            AS blocking_db,
+               CONCAT(bp.command, IF(bp.command = 'Sleep', CONCAT(' ', bp.time),   '')) AS blocking_status,
+               CONCAT(lock_mode, ' ', lock_type, ' ', object_name, '(', index_name, ')') AS lock_info
+            FROM PERFORMANCE_SCHEMA.DATA_LOCK_WAITS w
+               JOIN INFORMATION_SCHEMA.INNODB_TRX b   ON  b.trx_id  = w.blocking_engine_transaction_id
+               JOIN INFORMATION_SCHEMA.INNODB_TRX r   ON  r.trx_id  = w.requesting_engine_transaction_id
+               JOIN PERFORMANCE_SCHEMA.DATA_LOCKS l ON  l.engine_lock_id = w.requesting_engine_lock_id
+               LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST bp ON bp.id = b.trx_mysql_thread_id
+               LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST rp ON rp.id = r.trx_mysql_thread_id
+          });
+        };  ### End of eval for 8.0 query
+      }  ### End if version >= 8.0.1
+ 
       $sth ||= $dbh->prepare(q{SELECT /*innotop*/ '' FROM DUAL WHERE 1 = 0});
       return $sth;
    },
