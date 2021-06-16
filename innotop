@@ -4636,10 +4636,10 @@ my %stmt_maker_for = (
                bp.db                                            AS blocking_db,
                CONCAT(bp.command, IF(bp.command = 'Sleep', CONCAT(' ', bp.time),   '')) AS blocking_status,
                CONCAT(lock_mode, ' ', lock_type, ' ', object_name, '(', index_name, ')') AS lock_info
-            FROM PERFORMANCE_SCHEMA.DATA_LOCK_WAITS w
+            FROM performance_schema.data_lock_waits w
                JOIN INFORMATION_SCHEMA.INNODB_TRX b   ON  b.trx_id  = w.blocking_engine_transaction_id
                JOIN INFORMATION_SCHEMA.INNODB_TRX r   ON  r.trx_id  = w.requesting_engine_transaction_id
-               JOIN PERFORMANCE_SCHEMA.DATA_LOCKS l ON  l.engine_lock_id = w.requesting_engine_lock_id
+               JOIN performance_schema.data_locks l ON  l.engine_lock_id = w.requesting_engine_lock_id
                LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST bp ON bp.id = b.trx_mysql_thread_id
                LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST rp ON rp.id = r.trx_mysql_thread_id
           });
