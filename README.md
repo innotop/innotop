@@ -16,3 +16,14 @@ The manual is embedded into the program in Perl's POD format, so it should be av
 through perldoc and man.
 
 The full history has been imported in github.
+
+Docker
+------
+
+```sh
+docker build . -t innotop
+docker run -it --rm \
+  -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock:ro \
+  -v $HOME/.innotop:/root/.innotop \
+  innotop -u root -p xxxx
+```
