@@ -1,0 +1,222 @@
+*************************** 1. row ***************************
+  Type: InnoDB
+  Name: 
+Status: 
+=====================================
+2023-08-21 22:25:51 139784548730624 INNODB MONITOR OUTPUT
+=====================================
+Per second averages calculated from the last 18 seconds
+-----------------
+BACKGROUND THREAD
+-----------------
+srv_master_thread loops: 47 srv_active, 0 srv_shutdown, 951972 srv_idle
+srv_master_thread log flush and writes: 0
+----------
+SEMAPHORES
+----------
+-------------
+RW-LATCH INFO
+-------------
+RW-LOCK: 0x7f221ca76750 
+Locked: thread 139785216907008 file row0ins.cc line 2366  S-LOCK
+RW-LOCK: 0x7f2250332f10  Waiters for the lock exist
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332e60 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332db0  Waiters for the lock exist
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332d00  Waiters for the lock exist
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332c50 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332ba0 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332af0 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332a40  Waiters for the lock exist
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332990  Waiters for the lock exist
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f22503328e0 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332830 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332780  Waiters for the lock exist
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f22503326d0 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332620 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f2250332570 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f22503324c0 
+Locked: thread 139784549787392 file hash0hash.cc line 64  X-LOCK
+RW-LOCK: 0x7f224be0f4d0 
+Locked: thread 139784549787392 file row0sel.cc line 3382  S-LOCK
+Locked: thread 139784549787392 file buf0block_hint.cc line 78  S-LOCK
+RW-LOCK: 0x7f224be0f3d8 
+Locked: thread 139784549787392 file row0sel.cc line 3382  S-LOCK
+Total number of rw-locks 8490
+OS WAIT ARRAY INFO: reservation count 8133
+--Thread 139785219020544 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332f10 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785416038144 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332d00 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139784550844160 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332a40 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785217963776 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332990 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785550268160 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332d00 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785417094912 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332a40 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785214793472 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332db0 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785216907008 has waited at buf0buf.cc line 3735 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332780 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0buf.cc line 3735
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+--Thread 139785215850240 has waited at buf0block_hint.cc line 72 for 0 seconds the semaphore:
+S-lock on RW-latch at 0x7f2250332990 created in file hash0hash.cc line 116
+a writer (thread id 139784549787392) has reserved it in mode exclusive
+number of readers 0, waiters flag 1, lock_word: 0
+Last time read locked in file buf0block_hint.cc line 72
+Last time write locked in file /home/yoku0825/mysql-8.1.0/storage/innobase/ha/hash0hash.cc line 64
+OS WAIT ARRAY INFO: signal count 6750
+RW-shared spins 0, rounds 0, OS waits 0
+RW-excl spins 0, rounds 0, OS waits 0
+RW-sx spins 0, rounds 0, OS waits 0
+Spin rounds per wait: 0.00 RW-shared, 0.00 RW-excl, 0.00 RW-sx
+------------
+TRANSACTIONS
+------------
+Trx id counter 5163
+Purge done for trx's n:o < 5139 undo n:o < 0 state: running but idle
+History list length 109
+Total number of lock structs in row lock hash table 0
+LIST OF TRANSACTIONS FOR EACH SESSION:
+---TRANSACTION 421260532587336, not started
+0 lock struct(s), heap size 1192, 0 row lock(s)
+---TRANSACTION 421260532576248, not started
+0 lock struct(s), heap size 1192, 0 row lock(s)
+---TRANSACTION 421260532575240, not started
+0 lock struct(s), heap size 1192, 0 row lock(s)
+---TRANSACTION 421260532574232, not started
+0 lock struct(s), heap size 1192, 0 row lock(s)
+---TRANSACTION 5162, ACTIVE 0 sec inserting
+mysql tables in use 1, locked 1
+1 lock struct(s), heap size 1192, 0 row lock(s)
+MySQL thread id 27, OS thread handle 139785216907008, query id 2258 localhost root update
+INSERT INTO t1 VALUES (364531492,'qMa5SuKo4M5OM7ldvisSc6WK9rsG9E8sSixocHdgfa5uiiNTGFxkDJ4EAwWC2e4NL1BpAgWiFRcp1zIH6F1BayPdmwphatwnmzdwgzWnQ6SRxmcvtd6JRYwEKdvuWr')
+--------
+FILE I/O
+--------
+I/O thread 0 state: waiting for completed aio requests ((null))
+I/O thread 1 state: waiting for completed aio requests (insert buffer thread)
+I/O thread 2 state: waiting for completed aio requests (read thread)
+I/O thread 3 state: waiting for completed aio requests (read thread)
+I/O thread 4 state: waiting for completed aio requests (read thread)
+I/O thread 5 state: waiting for completed aio requests (read thread)
+I/O thread 6 state: waiting for completed aio requests (write thread)
+I/O thread 7 state: waiting for completed aio requests (write thread)
+I/O thread 8 state: waiting for completed aio requests (write thread)
+Pending normal aio reads: [0, 0, 0, 0] , aio writes: [0, 0, 0, 0] ,
+ ibuf aio reads:
+Pending flushes (fsync) log: 0; buffer pool: 0
+849 OS file reads, 10620 OS file writes, 5323 OS fsyncs
+0.00 reads/s, 0 avg bytes/read, 243.02 writes/s, 122.20 fsyncs/s
+-------------------------------------
+INSERT BUFFER AND ADAPTIVE HASH INDEX
+-------------------------------------
+Ibuf: size 1, free list len 0, seg size 2, 0 merges
+merged operations:
+ insert 0, delete mark 0, delete 0
+discarded operations:
+ insert 0, delete mark 0, delete 0
+Hash table size 17393, used cells 0, node heap has 0 buffer(s)
+Hash table size 17393, used cells 0, node heap has 0 buffer(s)
+Hash table size 17393, used cells 0, node heap has 0 buffer(s)
+Hash table size 17393, used cells 537, node heap has 3 buffer(s)
+Hash table size 17393, used cells 0, node heap has 0 buffer(s)
+Hash table size 17393, used cells 0, node heap has 0 buffer(s)
+Hash table size 17393, used cells 0, node heap has 0 buffer(s)
+Hash table size 17393, used cells 64, node heap has 1 buffer(s)
+0.00 hash searches/s, 62.66 non-hash searches/s
+---
+LOG
+---
+Log sequence number          20847697
+Log buffer assigned up to    20847697
+Log buffer completed up to   20847697
+Log written up to            20847697
+Log flushed up to            20847697
+Added dirty pages up to      20847697
+Pages flushed up to          19699957
+Last checkpoint at           19699957
+Log minimum file id is       5
+Log maximum file id is       6
+8899 log i/o's done, 223.83 log i/o's/second
+----------------------
+BUFFER POOL AND MEMORY
+----------------------
+Total large memory allocated 0
+Dictionary memory allocated 643375
+Buffer pool size   4096
+Free buffers       2850
+Database pages     1242
+Old database pages 438
+Modified db pages  755
+Pending reads      0
+Pending writes: LRU 0, flush list 0, single page 0
+Pages made young 1, not young 0
+0.00 youngs/s, 0.00 non-youngs/s
+Pages read 825, created 417, written 1310
+0.00 reads/s, 0.39 creates/s, 14.23 writes/s
+Buffer pool hit rate 1000 / 1000, young-making rate 0 / 1000 not 0 / 1000
+Pages read ahead 0.00/s, evicted without access 0.00/s, Random read ahead 0.00/s
+LRU len: 1242, unzip_LRU len: 0
+I/O sum[0]:cur[14], unzip sum[0]:cur[0]
+--------------
+ROW OPERATIONS
+--------------
+0 queries inside InnoDB, 0 queries in queue
+9 read views open inside InnoDB
+Process ID=19871, Main thread ID=139784315979520 , state=sleeping
+Number of rows inserted 1220, updated 0, deleted 0, read 615084
+31.72 inserts/s, 0.00 updates/s, 0.00 deletes/s, 24824.07 reads/s
+Number of system rows inserted 419, updated 357, deleted 325, read 5584
+8.39 inserts/s, 0.17 updates/s, 8.44 deletes/s, 8.89 reads/s
+----------------------------
+END OF INNODB MONITOR OUTPUT
+============================
+
