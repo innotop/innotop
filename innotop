@@ -7944,10 +7944,11 @@ sub load_config {
       # write a config
       $config{readonly}->{val} = 0 if $opts{w};
       # If no connections have been defined, connect to a MySQL database 
-      # on localhost using mysql_read_default_group=client
+      # on DBD::mysql default host using mysql_read_default_group=client
+      # (default host maybe localhost but it respects host parameter in my.cnf)
       if (!%connections) {
          add_new_dsn('localhost', 
-                     'DBI:mysql:;host=localhost;mysql_read_default_group=client', 
+                     'DBI:mysql:;mysql_read_default_group=client', 
                      'test.innotop_dl');
       }
    }
