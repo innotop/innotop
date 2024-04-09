@@ -3,7 +3,7 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.13.1
+Version:   1.14.1
 Release:   1%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
@@ -122,6 +122,9 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Tue Aug 22 2023 yoku0825 <yoku0825@gmail.com> - 1.14.0-1
+ - Support MySQL 8.1.0
+
 * Wed Apr 07 2021 Frederic Descamps <lefred@lefred.be> - 1.13.0-1
  - New version
 

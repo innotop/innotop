@@ -2,7 +2,7 @@
 use strict;
 use warnings FATAL => 'all';
 use English qw(-no_match_vars);
-use Test::More tests => 7;
+use Test::More tests => 8;
 use Data::Dumper;
 
 my $path;
@@ -35,6 +35,7 @@ my %versions = (
    $path . 't/innodb-status-008' => "5.6.12",
    $path . 't/innodb-status-009' => "5.7.7",
    $path . 't/innodb-status-010' => "8.0.12",
+   $path . 't/innodb-status-011' => "8.1.0",
 );
 
 my %tests = (
@@ -2476,6 +2477,491 @@ my %tests = (
       },
     ],
     IB_tx_trx_id_counter => '8886'
+  },
+  $path . "t/innodb-status-011" => {
+    IB_bp_add_pool_alloc => undef,
+    IB_bp_awe_mem_alloc => 0,
+    IB_bp_buf_free => '2850',
+    IB_bp_buf_pool_hit_rate => '1000 / 1000',
+    IB_bp_buf_pool_hits => '1000',
+    IB_bp_buf_pool_reads => '1000',
+    IB_bp_buf_pool_size => '4096',
+    IB_bp_complete => '1',
+    IB_bp_dict_mem_alloc => '643375',
+    IB_bp_page_creates_sec => '0.39',
+    IB_bp_page_reads_sec => '0.00',
+    IB_bp_page_writes_sec => '14.23',
+    IB_bp_pages_created => '417',
+    IB_bp_pages_modified => '755',
+    IB_bp_pages_read => '825',
+    IB_bp_pages_total => '1242',
+    IB_bp_pages_written => '1310',
+    IB_bp_reads_pending => '0',
+    IB_bp_total_mem_alloc => '0',   ### Wrong but SHOW ENGINE INNODB STATUS issue, https://bugs.mysql.com/bug.php?id=112127
+    IB_bp_writes_pending => '0',
+    IB_bp_writes_pending_flush_list => 0,
+    IB_bp_writes_pending_lru => 0,
+    IB_bp_writes_pending_single_page => 0,
+    IB_dl_complete => undef,
+    IB_dl_rolled_back => undef,
+    IB_dl_timestring => undef,
+    IB_dl_txns => undef,
+    IB_fk_attempted_op => undef,
+    IB_fk_child_db => undef,
+    IB_fk_child_index => undef,
+    IB_fk_child_table => undef,
+    IB_fk_col_name => undef,
+    IB_fk_complete => undef,
+    IB_fk_fk_name => undef,
+    IB_fk_parent_col => undef,
+    IB_fk_parent_db => undef,
+    IB_fk_parent_index => undef,
+    IB_fk_parent_table => undef,
+    IB_fk_reason => undef,
+    IB_fk_records => undef,
+    IB_fk_timestring => undef,
+    IB_fk_trigger => undef,
+    IB_fk_txn => undef,
+    IB_fk_type => undef,
+    IB_got_all => 1,
+    IB_ib_bufs_in_node_heap => '0',
+    IB_ib_complete => 1,
+    IB_ib_free_list_len => '0',
+    IB_ib_hash_searches_s => '0.00',
+    IB_ib_hash_table_size => '17393',
+    IB_ib_inserts => undef,
+    IB_ib_merged_recs => '0',
+    IB_ib_merges => '0',
+    IB_ib_non_hash_searches_s => '62.66',
+    IB_ib_seg_size => '2',
+    IB_ib_size => '1',
+    IB_ib_used_cells => 0,
+    IB_io_avg_bytes_s => '0',
+    IB_io_complete => 1,
+    IB_io_flush_type => 'fsync',
+    IB_io_fsyncs_s => '122.20',
+    IB_io_os_file_reads => '849',
+    IB_io_os_file_writes => '10620',
+    IB_io_os_fsyncs => '5323',
+    IB_io_pending_aio_writes => undef,
+    IB_io_pending_buffer_pool_flushes => '0',
+    IB_io_pending_ibuf_aio_reads => undef,
+    IB_io_pending_log_flushes => '0',
+    IB_io_pending_log_ios => undef,
+    IB_io_pending_normal_aio_reads => undef,
+    IB_io_pending_preads => 0,
+    IB_io_pending_pwrites => 0,
+    IB_io_pending_sync_ios => undef,
+    IB_io_reads_s => '0.00',
+    IB_io_threads => {
+      '0' => {
+        event_set => 0,
+        purpose => '(null)',
+        state => 'waiting for completed aio requests',
+        thread => '0'
+      },
+      '1' => {
+        event_set => 0,
+        purpose => 'insert buffer thread',
+        state => 'waiting for completed aio requests',
+        thread => '1'
+      },
+      '2' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '2'
+      },
+      '3' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '3'
+      },
+      '4' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '4'
+      },
+      '5' => {
+        event_set => 0,
+        purpose => 'read thread',
+        state => 'waiting for completed aio requests',
+        thread => '5'
+      },
+      '6' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '6'
+      },
+      '7' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '7'
+      },
+      '8' => {
+        event_set => 0,
+        purpose => 'write thread',
+        state => 'waiting for completed aio requests',
+        thread => '8'
+      }
+    },
+    IB_io_writes_s => '243.02',
+    IB_last_secs => '18',
+    IB_lg_complete => 1,
+    IB_lg_last_chkp => '19699957',
+    IB_lg_log_flushed_to => '20847697',
+    IB_lg_log_ios_done => '8899',
+    IB_lg_log_ios_s => '223.83',
+    IB_lg_log_seq_no => '20847697',
+    IB_lg_pending_chkp_writes => undef,
+    IB_lg_pending_log_writes => undef,
+    IB_ro_complete => 1,
+    IB_ro_del_sec => '0.00',
+    IB_ro_ins_sec => '31.72',
+    IB_ro_main_thread_id => '139784315979520',
+    IB_ro_main_thread_proc_no => '19871',
+    IB_ro_main_thread_state => 'sleeping',
+    IB_ro_n_reserved_extents => 0,
+    IB_ro_num_rows_del => '0',
+    IB_ro_num_rows_ins => '1220',
+    IB_ro_num_rows_read => '615084',
+    IB_ro_num_rows_upd => '0',
+    IB_ro_queries_in_queue => '0',
+    IB_ro_queries_inside => '0',
+    IB_ro_read_sec => '24824.07',
+    IB_ro_read_views_open => 9,
+    IB_ro_upd_sec => '0.00',
+    IB_sm_complete => 1,
+    IB_sm_mutex_os_waits => undef,
+    IB_sm_mutex_spin_rounds => undef,
+    IB_sm_mutex_spin_waits => undef,
+    IB_sm_reservation_count => undef,
+    IB_sm_rw_excl_os_waits => '0',
+    IB_sm_rw_excl_spins => '0',
+    IB_sm_rw_shared_os_waits => '0',
+    IB_sm_rw_shared_spins => '0',
+    IB_sm_signal_count => undef,
+    IB_sm_wait_array_size => 8,
+    IB_sm_waits => [
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332f10',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332d00',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332a40',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332990',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332d00',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332a40',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332db0',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0block_hint.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 72,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      },
+      {
+        cell_event_set => 0,
+        lock_cline => 116,
+        lock_mem_addr => '0x7f2250332780',
+        waited_secs => undef,
+        lock_cfile_name => 'hash0hash.cc',
+        lock_var => '0',
+        last_x_line => '0',
+        last_s_file_name => 'buf0buf.cc',
+        request_type => 'S',
+        cell_waiting => 1,
+        waited_at_filename => undef,
+        waiters_flag => undef,   ### FIXME
+        waited_at_line => undef,  ### FIXME
+        writer_thread => 0, ### FIXME
+        num_readers => 0,
+        last_x_file_name => '',
+        last_s_line => 3735,
+        thread => undef,  ### FIXME
+        writer_lock_mode => '',  ### FIXME?
+      }
+    ],
+    IB_timestring => '2023-08-21 22:25:51',
+    IB_tx_complete => 1,
+    IB_tx_history_list_len => '109',
+    IB_tx_is_truncated => 0,
+    IB_tx_num_lock_structs => 0,
+    IB_tx_purge_done_for => undef,
+    IB_tx_purge_undo_for => undef,
+    IB_tx_transactions => [
+      {
+        active_secs => 0,
+        has_read_view => 0,
+        heap_size => '1192',
+        hostname => '',
+        ip => '',
+        lock_structs => 0,
+        lock_wait_status => '',
+        lock_wait_time => 0,
+        mysql_thread_id => undef,
+        os_thread_id => undef,
+        proc_no => 0,
+        query_id => undef,
+        query_status => '',
+        query_text => '',
+        row_locks => 0,
+        tables_in_use => 0,
+        tables_locked => 0,
+        thread_decl_inside => 0,
+        thread_status => '',
+        txn_doesnt_see_ge => '',
+        txn_id => '421260532587336',
+        txn_sees_lt => '',
+        txn_status => 'not started',
+        undo_log_entries => 0,
+        user => ''
+      },
+      {
+        active_secs => 0,
+        has_read_view => 0,
+        heap_size => '1192',
+        hostname => '',
+        ip => '',
+        lock_structs => 0,
+        lock_wait_status => '',
+        lock_wait_time => 0,
+        mysql_thread_id => undef,
+        os_thread_id => undef,
+        proc_no => 0,
+        query_id => undef,
+        query_status => '',
+        query_text => '',
+        row_locks => 0,
+        tables_in_use => 0,
+        tables_locked => 0,
+        thread_decl_inside => 0,
+        thread_status => '',
+        txn_doesnt_see_ge => '',
+        txn_id => '421260532576248',
+        txn_sees_lt => '',
+        txn_status => 'not started',
+        undo_log_entries => 0,
+        user => ''
+      },
+      {
+        active_secs => 0,
+        has_read_view => 0,
+        heap_size => '1192',
+        hostname => '',
+        ip => '',
+        lock_structs => 0,
+        lock_wait_status => '',
+        lock_wait_time => 0,
+        mysql_thread_id => undef,
+        os_thread_id => undef,
+        proc_no => 0,
+        query_id => undef,
+        query_status => '',
+        query_text => '',
+        row_locks => 0,
+        tables_in_use => 0,
+        tables_locked => 0,
+        thread_decl_inside => 0,
+        thread_status => '',
+        txn_doesnt_see_ge => '',
+        txn_id => '421260532575240',
+        txn_sees_lt => '',
+        txn_status => 'not started',
+        undo_log_entries => 0,
+        user => ''
+      },
+      {
+        active_secs => 0,
+        has_read_view => 0,
+        heap_size => '1192',
+        hostname => '',
+        ip => '',
+        lock_structs => 0,
+        lock_wait_status => '',
+        lock_wait_time => 0,
+        mysql_thread_id => undef,
+        os_thread_id => undef,
+        proc_no => 0,
+        query_id => undef,
+        query_status => '',
+        query_text => '',
+        row_locks => 0,
+        tables_in_use => 0,
+        tables_locked => 0,
+        thread_decl_inside => 0,
+        thread_status => '',
+        txn_doesnt_see_ge => '',
+        txn_id => '421260532574232',
+        txn_sees_lt => '',
+        txn_status => 'not started',
+        undo_log_entries => 0,
+        user => ''
+      },
+ 
+      {
+        active_secs => 0,
+        has_read_view => 0,
+        heap_size => '1192',
+        hostname => 'localhost',
+        ip => '',
+        lock_structs => 1,
+        lock_wait_status => '',
+        lock_wait_time => 0,
+        mysql_thread_id => '27',
+        os_thread_id => undef,
+        proc_no => 0,
+        query_id => '2258',
+        query_status => 'update',
+        query_text => q{INSERT INTO t1 VALUES (364531492,'qMa5SuKo4M5OM7ldvisSc6WK9rsG9E8sSixocHdgfa5uiiNTGFxkDJ4EAwWC2e4NL1BpAgWiFRcp1zIH6F1BayPdmwphatwnmzdwgzWnQ6SRxmcvtd6JRYwEKdvuWr')},
+        row_locks => 0,
+        tables_in_use => 1,
+        tables_locked => 1,
+        thread_decl_inside => 0,
+        thread_status => 'inserting',
+        txn_doesnt_see_ge => '',
+        txn_id => '5162',
+        txn_sees_lt => '',
+        txn_status => 'ACTIVE',
+        undo_log_entries => 0,
+        user => 'root'
+      },
+    ],
+    IB_tx_trx_id_counter => '5163'
   }
 );
 
