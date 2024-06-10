@@ -122,6 +122,10 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Mon Jun 10 2024 yoku0825 <yoku0825@gmail.com> - 1.15-0.1
+ - Support Group Replication
+ - Support new replication terminology
+
 * Tue Aug 22 2023 yoku0825 <yoku0825@gmail.com> - 1.14.0-1
  - Support MySQL 8.1.0
 
