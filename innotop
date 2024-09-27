@@ -4688,14 +4688,14 @@ my %stmt_maker_for = (
    },
    SHOW_MASTER_LOGS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare(version_ge( $dbh, '8.0.34' ) && !version_ge( $dbh, '10.0.0' )
+      return $dbh->prepare(version_ge( $dbh, '8.1' ) && !version_ge( $dbh, '10.0.0' )
            ? 'SHOW /*innotop*/ BINARY LOGS'
            : 'SHOW /*innotop*/ MASTER LOGS');
    },
    SHOW_MASTER_STATUS => sub {
       my ( $dbh ) = @_;
       return $dbh->prepare(version_ge( $dbh, '8.0.34' ) && !version_ge( $dbh, '10.0.0' )
-           ? 'SHOW /*innotop*/ BINARY LOG STATUS'
+           ? 'SHOW /*innotop*/ MASTER STATUS'
            : 'SHOW /*innotop*/ MASTER STATUS');
    },
    SHOW_SLAVE_STATUS => sub {
@@ -9495,8 +9495,11 @@ sub get_status_info {
             my @prev_run = ($pre->{SPARK_store_run} || '') =~ m/(\S+)/g;
 
             # Find out the values; throw away if too many; sparkify; store.
-            my $this_qps = (($vars->{Queries} || 0) - ($pre->{Queries} || 0))/
+            my $this_qps = 0;
+            if ($vars->{Uptime_hires} - $pre->{Uptime_hires} > 0) {
+               $this_qps = (($vars->{Queries} || 0) - ($pre->{Queries} || 0))/
                            ($vars->{Uptime_hires} - $pre->{Uptime_hires});
+            }
             push @prev_qps, $this_qps;
             shift @prev_qps if @prev_qps > $config{spark}->{val};
             my $qps_spark = sparkify(@prev_qps);
@@ -9960,6 +9963,20 @@ sub get_slave_status {
          	my $res = $stmt->fetchall_arrayref({});
        	   if ( $res && @$res ) {
        	    	$res = $res->[0];
+
+               # patch terminology
+               foreach my $key (keys %$res) {
+                  if ($key =~ /^replica_/) {
+                     my $new_key = $key;
+                     $new_key =~ s/^replica_/slave_/;
+                     $res->{$new_key} = delete $res->{$key};
+                  } elsif ($key =~ /^source_/) {
+                     my $new_key = $key;
+                     $new_key =~ s/^source_/master_/;
+                     $res->{$new_key} = delete $res->{$key};
+                  }
+               }
+
        	    	@{$vars}{ keys %$res } = values %$res;
             	$vars->{Slave_ok} =
                		(($res->{slave_sql_running} || 'Yes') eq 'Yes'
@@ -9970,7 +9987,13 @@ sub get_slave_status {
            }
   	 } else {
 				 my $dbh = connect_to_db($cxn);
-				 my $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\''; 
+             my $use_new_terms = version_ge($dbh, '8.0.34') && !version_ge($dbh, '10.0');
+             my $sql;
+				 if ($use_new_terms) {
+                  $sql = 'SHOW REPLICA STATUS FOR CHANNEL \'' . $channel . '\'';
+            } else {
+               $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\'';
+             }
 				 my $stmt = $dbh->prepare($sql ) ;
 				 $stmt->execute();
          		 my $res = $stmt->fetchall_arrayref({});
