@@ -1,5 +1,10 @@
 Changelog for innotop:
 
+2024-09-27: version 1.15.1
+	* Updated version check logic in SHOW_MASTER_LOGS and SHOW_MASTER_STATUS #204
+	* Added a zero division check for the $this_qps variable in the get_status_info function.
+	* Added renaming of variables from replica_ to slave_ and from source_ to master_ to support the new terminology.
+
 2024-06-10: version 1.15.0
 	* Support Group Replication #203
 	* Support new replication terminology #203
