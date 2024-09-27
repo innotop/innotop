@@ -4694,8 +4694,8 @@ my %stmt_maker_for = (
    },
    SHOW_MASTER_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare(version_ge( $dbh, '8.0.34' ) && !version_ge( $dbh, '10.0.0' )
-           ? 'SHOW /*innotop*/ MASTER STATUS'
+      return $dbh->prepare(version_ge( $dbh, '8.2.0' ) && !version_ge( $dbh, '10.0.0' )
+           ? 'SHOW /*innotop*/ BINARY LOG STATUS'
            : 'SHOW /*innotop*/ MASTER STATUS');
    },
    SHOW_SLAVE_STATUS => sub {
