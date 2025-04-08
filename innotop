@@ -4718,7 +4718,7 @@ my %stmt_maker_for = (
    },
    GET_GR_STATUS => sub {
         my ( $dbh ) = @_;
-        if ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^8/ ) ) { 
+        if ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^[89]\./ ) ) { 
            return $dbh->prepare('SELECT ms.*, m.member_host, m.member_port, m.member_state, m.member_role, m.member_version FROM performance_schema.replication_group_member_stats AS ms JOIN performance_schema.replication_group_members AS m USING(MEMBER_ID);');
         } else {
             # Not supported for MariaDB
