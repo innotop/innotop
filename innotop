@@ -22,7 +22,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.15.2';
+our $VERSION = '1.15.3';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -402,7 +402,8 @@ sub parse_status_text {
    # too many locks to print, the output might be truncated)
 
    my $time_text;
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.[01234]\./) || ($mysqlversion =~ /^10\.[0123]\./) ) {
+   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.[01234]\./) || ($mysqlversion =~ /^9\.2/) || 
+        ($mysqlversion =~ /^10\.[0123]\./) ) {
       ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-fx]* INNODB MONITOR OUTPUT/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
    } else {
@@ -4717,7 +4718,7 @@ my %stmt_maker_for = (
    },
    GET_GR_STATUS => sub {
         my ( $dbh ) = @_;
-        if ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^8/ ) ) { 
+        if ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^[89]\./ ) ) { 
            return $dbh->prepare('SELECT ms.*, m.member_host, m.member_port, m.member_state, m.member_role, m.member_version FROM performance_schema.replication_group_member_stats AS ms JOIN performance_schema.replication_group_members AS m USING(MEMBER_ID);');
         } else {
             # Not supported for MariaDB

@@ -3,7 +3,7 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.15.2
+Version:   1.15.3
 Release:   1%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
@@ -122,6 +122,9 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Tue Apr 08 2025 yoku0825 <yoku0825@gmail.com> - 1.15.3-1
+ - Support MySQL 9.2
+
 * Mon Jun 10 2024 yoku0825 <yoku0825@gmail.com> - 1.15-0.1
  - Support Group Replication
  - Support new replication terminology
