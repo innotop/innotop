@@ -22,7 +22,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.13.0';
+our $VERSION = '1.15.3';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -402,7 +402,8 @@ sub parse_status_text {
    # too many locks to print, the output might be truncated)
 
    my $time_text;
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.0\./) || ($mysqlversion =~ /^1[0-1]\.[0-9]+\./) ) {
+   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.[01234]\./) || ($mysqlversion =~ /^9\.2/) || 
+        ($mysqlversion =~ /^1[0-1]\.[0-9]+\./) ) {
       ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-fx]* INNODB MONITOR OUTPUT/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
    } else {
@@ -1441,6 +1442,7 @@ my @opt_spec = (
    { s => 'socket|S=s', d => 'MySQL socket to use for connection' },
    { s => 'timestamp|t+', d => 'Print timestamp in -n mode (1: per iter; 2: per line)' },
    { s => 'ssl', d => 'Passed to mysql_ssl', c => 'mysql_ssl' },
+   { s => 'ssl_optional', d => 'Passed to mysql_ssl_optional', c => 'mysql_ssl_optional' },
    { s => 'ssl_ca_file=s', d => 'Passed to mysql_ssl_ca_file', c => 'mysql_ssl_ca_file' },
    { s => 'ssl_ca_path=s', d => 'Passed to mysql_ssl_ca_path', c => 'mysql_ssl_ca_path' },
    { s => 'ssl_verify_server_cert', d => 'Passed to mysql_ssl_verify_server_cert', c => 'mysql_ssl_verify_server_cert' },
@@ -1536,8 +1538,11 @@ my %exprs = (
                            ((Com_select||0)+(Qcache_hits||0))/(Queries||1)*100,
                             ((Com_insert||0)+(Com_replace||0))/(Queries||1)*100,
                             (Com_update||0)/(Queries||1)*100,
-                            (Com_delete||0)/(Queries||1)*100,
-)},
+                            (Com_delete||0)/(Queries||1)*100,)
+                        },
+   gr_member_id  => q{my $host_port = member_host . ":" . member_port; return member_id . "\n\n" . $host_port},
+   gtid_extract_tcam => q{my $gtid = $cur->{transactions_committed_all_members}; $gtid =~ s/[a-f0-9-]+://g if $gtid; return $gtid || 'N/A'},
+   gtid_extract_lcft => q{my $gtid = $cur->{last_conflict_free_transaction}; $gtid =~ s/[a-f0-9-]+://g if $gtid; return $gtid || 'N/A'},
 );
 
 # ###########################################################################
@@ -1830,6 +1835,22 @@ my %columns = (
    writes_pending_flush_list   => { hdr => 'Flush List Writes',   num => 1, label => 'Number of flush list writes pending' },
    writes_pending_lru          => { hdr => 'LRU Writes',          num => 1, label => 'Number of LRU writes pending' },
    writes_pending_single_page  => { hdr => '1-Page Writes',       num => 1, label => 'Number of 1-page writes pending' },
+   view_id                             => { hdr => 'Conf ID',     num => 0, label => 'Current configuration identifier for this group' },
+   member_id                           => { hdr => 'Member UUID',          num => 0, label => 'The member server UUID' },
+   count_transactions_in_queue         => { hdr => 'Txn in Q',             num => 1, label => 'The number of transactions in the queue pending conflict detection checks' },
+   count_transactions_checked          => { hdr => 'Txn Checked',          num => 1, label => 'The number of transactions that have been checked for conflicts' },
+   count_conflicts_detected            => { hdr => 'Conflicts Detected',   num => 1, label => 'The number of transactions that have not passed the conflict detection check' },
+   count_transactions_rows_validating  => { hdr => 'Txn Rows Val',         num => 1, label => 'Number of transaction rows which can be used for certification, but have not been garbage collected' },
+   transactions_committed_all_members  => { hdr => 'Txn Committed',        num => 0, label => 'The transactions that have been successfully committed on all members of the replication group' },
+   last_conflict_free_transaction      => { hdr => 'Last Conflict-Free Txn',num => 0, label => 'The transaction identifier of the last conflict free transaction which was checked' },
+   count_transactions_remote_in_applier_queue => { hdr => 'Remote Txn in Applier Queue', num => 1, label => 'The number of transactions that this member has received from the replication group which are waiting to be applied' },
+   count_transactions_local_proposed   => { hdr => 'Local Txn Proposed',   num => 1, label => 'Number of transactions proposed by this member' },
+   count_transactions_local_rollback   => { hdr => 'Local Txn Rollback',   num => 1, label => 'Number of transactions rolled back by this member' },
+   member_host                         => { hdr => 'Host',                 num => 0, label => 'The host name of the member' },
+   member_port                         => { hdr => 'Port',                 num => 1, label => 'The port number used by the member' },
+   member_state                        => { hdr => 'State',                num => 0, label => 'The state of the member' },
+   member_role                         => { hdr => 'Role',                 num => 0, label => 'The role of the member' },
+   member_version                      => { hdr => 'Version',              num => 0, label => 'The version of the member' },
 );
 
 # Apply a default property or three.  By default, columns are not width-constrained,
@@ -3048,6 +3069,50 @@ my %tbl_meta = (
       group_by  => [],
       aggregate => 0,
    },
+   group_replication => {
+        capt => 'Group Replication Member Stats',
+        cust => {},
+        cols => {
+            cxn                            => { src => $exprs{chcxn_2_cxn}, hdr => 'CXN' },
+            channel_name                   => { src => 'channel_name' },
+            view_id                        => { src => 'view_id' },
+            member_id                      => { src => $exprs{gr_member_id}, hdr => 'Member UUID' },
+            count_transactions_in_queue    => { src => 'count_transactions_in_queue' },
+            count_transactions_checked     => { src => 'count_transactions_checked' },
+            count_conflicts_detected       => { src => 'count_conflicts_detected' },
+            count_transactions_rows_validating => { src => 'count_transactions_rows_validating' },
+            count_transactions_remote_in_applier_queue => { src => 'count_transactions_remote_in_applier_queue' },
+            transactions_committed_all_members => { src => $exprs{gtid_extract_tcam}, hdr => 'All mbr Txn Committed' },
+            last_conflict_free_transaction     => { src => $exprs{gtid_extract_lcft}, hdr => 'Last Txn wo Conflict' },
+            count_transactions_local_proposed => { src => 'count_transactions_local_proposed' },
+            count_transactions_local_rollback => { src => 'count_transactions_local_rollback' },
+            member_host                    => { src => 'member_host' },
+            member_port                    => { src => 'member_port' },
+            member_state                   => { src => 'member_state' },
+            member_role                    => { src => 'member_role' },
+            member_version                 => { src => 'member_version' },
+        },
+        visible => [ qw(cxn view_id member_id member_state member_role count_transactions_in_queue count_transactions_checked 
+                        count_conflicts_detected count_transactions_rows_validating count_transactions_remote_in_applier_queue 
+                        count_transactions_local_proposed count_transactions_local_rollback 
+                        last_conflict_free_transaction transactions_committed_all_members 
+                        )],
+        filters => [],
+        sort_cols => 'cxn',
+        sort_dir => '1',
+        innodb   => '',
+        group_by => [qw(channel_name)],
+        aggregate => 0,
+        colors   => [
+            { col => 'member_state', op => 'eq', arg => 'ONLINE', color => 'green' },
+            { col => 'member_state', op => 'eq', arg => 'RECOVERING', color => 'yellow' },
+            { col => 'member_state', op => 'eq', arg => 'OFFLINE', color => 'blue' },
+            { col => 'member_state', op => 'eq', arg => 'ERROR', color => 'white on_red' },
+            { col => 'member_state', op => 'eq', arg => 'UNREACHABLE', color => 'black on_red' },
+            { col => 'member_role', op => 'eq', arg => 'PRIMARY', color => 'green' },
+            { col => 'member_role', op => 'eq', arg => 'SECONDARY', color => 'yellow' },
+        ],
+    },
 );
 
 # Initialize %tbl_meta from %columns and do some checks.
@@ -3203,6 +3268,20 @@ my %modes = (
       one_connection    => 1,
       tables            => [qw(fk_error)],
       visible_tables    => [qw(fk_error)],
+   },
+   G => {
+      hdr               => 'Group Replication',
+      cust              => {},
+      note              => 'Shows group replication status',
+      action_for        => {
+         # todo later
+      },
+      display_sub       => \&display_G,
+      connections       => [],
+      server_group      => '',
+      one_connection    => 0,
+      tables            => [qw(group_replication)],
+      visible_tables    => [qw(group_replication)],
    },
    I => {
       hdr               => 'InnoDB I/O Info',
@@ -3595,6 +3674,10 @@ my %action_for = (
    },
    F => {
       action => sub { switch_mode('F') },
+      label  => '',
+   },
+   G => {
+      action => sub { switch_mode('G') },
       label  => '',
    },
    I => {
@@ -4606,26 +4689,41 @@ my %stmt_maker_for = (
    },
    SHOW_MASTER_LOGS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW /*innotop*/ MASTER LOGS');
+      return $dbh->prepare(version_ge( $dbh, '8.1' ) && !version_ge( $dbh, '10.0.0' )
+           ? 'SHOW /*innotop*/ BINARY LOGS'
+           : 'SHOW /*innotop*/ MASTER LOGS');
    },
    SHOW_MASTER_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW /*innotop*/ MASTER STATUS');
+      return $dbh->prepare(version_ge( $dbh, '8.2.0' ) && !version_ge( $dbh, '10.0.0' )
+           ? 'SHOW /*innotop*/ BINARY LOG STATUS'
+           : 'SHOW /*innotop*/ MASTER STATUS');
    },
    SHOW_SLAVE_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare('SHOW /*innotop*/ SLAVE STATUS');
+      return $dbh->prepare(version_ge( $dbh, '8.0.34' ) && !version_ge( $dbh, '10.0.0' )
+           ? 'SHOW /*innotop*/ REPLICA STATUS'
+           : 'SHOW /*innotop*/ SLAVE STATUS');
    },
    GET_CHANNELS => sub {
       my ( $dbh ) = @_;
       if (version_ge( $dbh, '10.0.2' )) {
-       # Not supported or MariaDB specific way to get channel list.
+         # Not supported or MariaDB specific way to get channel list.
          return $dbh->prepare('select "no_channels"');
       } elsif ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^8/ ) ) { 
-             return $dbh->prepare('select CHANNEL_NAME from performance_schema.replication_applier_status where CHANNEL_NAME regexp "^[a-zA-Z].*";');
+            return $dbh->prepare('select CHANNEL_NAME from performance_schema.replication_applier_status;');
       } else {
-       return $dbh->prepare('select "no_channels"');
+            return $dbh->prepare('select "no_channels"');
       }
+   },
+   GET_GR_STATUS => sub {
+        my ( $dbh ) = @_;
+        if ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^[89]\./ ) ) { 
+           return $dbh->prepare('SELECT ms.*, m.member_host, m.member_port, m.member_state, m.member_role, m.member_version FROM performance_schema.replication_group_member_stats AS ms JOIN performance_schema.replication_group_members AS m USING(MEMBER_ID);');
+        } else {
+            # Not supported for MariaDB
+            return $dbh->prepare('select "no_channels"');
+        }    
    },
    KILL_CONNECTION => sub {
       my ( $dbh ) = @_;
@@ -5605,15 +5703,18 @@ sub display_M {
 				$channel = 'no_channels';
 			}
 			my $chcxn = $channel . '=' . $cxn;
-			get_slave_status($cxn,$channel);
-		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
-			my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
-			if ( $wanted{slave_sql_status} ) {
-				push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
-			}
-			if ( $wanted{slave_io_status} ) {
-				push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
-			}
+         if ($channel !~ /^group_replication_/) {
+   			get_slave_status($cxn,$channel);
+   		  	my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
+	   		my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
+	   		if ( $wanted{slave_sql_status} ) {
+					push @slave_sql_status, extract_values($set, $set, $pre, 'slave_sql_status');
+				}
+				if ( $wanted{slave_io_status} ) {
+					push @slave_io_status, extract_values($set, $set, $pre, 'slave_io_status');
+				}
+         }
+
 		 }
 		 if ( $linecount < 1 ) { 
 			$channel = 'no_channels';
@@ -5643,6 +5744,45 @@ sub display_M {
    }
 
    draw_screen(\@display_lines);
+}
+
+# display_G {{{3
+sub display_G {
+    my @display_lines;
+    my @cxns = get_connections();
+    get_status_info(@cxns); 
+
+    my @group_member_stats;
+    my %rows_for = (
+        group_replication => \@group_member_stats,
+    );
+
+    my @visible = get_visible_tables();
+    my %wanted  = map { $_ => 1 } @visible;
+
+    foreach my $cxn (@cxns) {
+        my $sth_gr_status = do_stmt($cxn, 'GET_GR_STATUS');
+        next if (!$sth_gr_status);
+        $sth_gr_status->execute();
+        while (my $row = $sth_gr_status->fetchrow_hashref) {
+            my $chcxn = $row->{channel_name} . '=' . $cxn;
+            @{$vars{$chcxn}{$clock}}{ keys %$row } = values %$row;
+            my $set  = $config{status_inc}->{val} ? inc(0, $chcxn) : $vars{$chcxn}->{$clock};
+            my $pre  = $vars{$chcxn}->{$clock - 1} || $set;
+            if ($wanted{group_replication}) {
+                push @group_member_stats, extract_values($set, $set, $pre, 'group_replication');
+            }
+        }
+    }
+
+    my $first_table = 0;
+    foreach my $tbl (@visible) {
+        push @display_lines, '', set_to_tbl($rows_for{$tbl}, $tbl);
+        push @display_lines, get_cxn_errors(@cxns)
+            if ($config{debug}->{val} || !$first_table++);
+    }
+
+    draw_screen(\@display_lines);
 }
 
 # display_O {{{3
@@ -7731,6 +7871,7 @@ sub get_new_db_connection {
       PrintError        => 0,
    };
    $defaults->{mysql_ssl} = $opts{ssl} if $opts{ssl};
+   $defaults->{mysql_ssl_optional} = $opts{ssl_optional} if $opts{ssl_optional};
    $defaults->{mysql_ssl_ca_file} = $opts{ssl_ca_file} if $opts{ssl_ca_file};
    $defaults->{mysql_ssl_ca_path} = $opts{ssl_ca_path} if $opts{ssl_ca_path};
    $defaults->{mysql_ssl_verify_server_cert} = $opts{ssl_verify_server_cert} if $opts{ssl_verify_server_cert};
@@ -7944,10 +8085,11 @@ sub load_config {
       # write a config
       $config{readonly}->{val} = 0 if $opts{w};
       # If no connections have been defined, connect to a MySQL database 
-      # on localhost using mysql_read_default_group=client
+      # on DBD::mysql default host using mysql_read_default_group=client
+      # (default host maybe localhost but it respects host parameter in my.cnf)
       if (!%connections) {
          add_new_dsn('localhost', 
-                     'DBI:mysql:;host=localhost;mysql_read_default_group=client', 
+                     'DBI:mysql:;mysql_read_default_group=client', 
                      'test.innotop_dl');
       }
    }
@@ -9354,8 +9496,11 @@ sub get_status_info {
             my @prev_run = ($pre->{SPARK_store_run} || '') =~ m/(\S+)/g;
 
             # Find out the values; throw away if too many; sparkify; store.
-            my $this_qps = (($vars->{Queries} || 0) - ($pre->{Queries} || 0))/
+            my $this_qps = 0;
+            if ($vars->{Uptime_hires} - $pre->{Uptime_hires} > 0) {
+               $this_qps = (($vars->{Queries} || 0) - ($pre->{Queries} || 0))/
                            ($vars->{Uptime_hires} - $pre->{Uptime_hires});
+            }
             push @prev_qps, $this_qps;
             shift @prev_qps if @prev_qps > $config{spark}->{val};
             my $qps_spark = sparkify(@prev_qps);
@@ -9819,6 +9964,20 @@ sub get_slave_status {
          	my $res = $stmt->fetchall_arrayref({});
        	   if ( $res && @$res ) {
        	    	$res = $res->[0];
+
+               # patch terminology
+               foreach my $key (keys %$res) {
+                  if ($key =~ /^replica_/) {
+                     my $new_key = $key;
+                     $new_key =~ s/^replica_/slave_/;
+                     $res->{$new_key} = delete $res->{$key};
+                  } elsif ($key =~ /^source_/) {
+                     my $new_key = $key;
+                     $new_key =~ s/^source_/master_/;
+                     $res->{$new_key} = delete $res->{$key};
+                  }
+               }
+
        	    	@{$vars}{ keys %$res } = values %$res;
             	$vars->{Slave_ok} =
                		(($res->{slave_sql_running} || 'Yes') eq 'Yes'
@@ -9829,7 +9988,13 @@ sub get_slave_status {
            }
   	 } else {
 				 my $dbh = connect_to_db($cxn);
-				 my $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\''; 
+             my $use_new_terms = version_ge($dbh, '8.0.34') && !version_ge($dbh, '10.0');
+             my $sql;
+				 if ($use_new_terms) {
+                  $sql = 'SHOW REPLICA STATUS FOR CHANNEL \'' . $channel . '\'';
+            } else {
+               $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\'';
+             }
 				 my $stmt = $dbh->prepare($sql ) ;
 				 $stmt->execute();
          		 my $res = $stmt->fetchall_arrayref({});
@@ -10143,6 +10308,120 @@ likely never to be perfect in this regard.  If innotop doesn't show you what
 you need to see, just look at the status text directly.
 
 This mode displays the L<"fk_error"> table by default.
+
+=item G: Group Replication Member Stats
+
+This mode shows the status of group replication members, including information on transactions, conflicts, and member details. The display is divided into several columns that provide a comprehensive overview of each member's status within the group.
+
+This mode displays the C<replication_group_member_stats> & C<replication_group_members>  tables by default.
+
+Columns displayed:
+
+=over 4
+
+=item C<CXN>
+
+The connection identifier.
+
+=item C<Conf ID>
+
+The current view identifier for the group.
+
+=item C<Member UUID>
+
+The server UUID of the member, combined with the host and port.
+
+=item C<Host>
+
+The host name of the member.
+
+=item C<State>
+
+The state of the member (e.g., ONLINE, RECOVERING, OFFLINE, ERROR, UNREACHABLE).
+
+=item C<Role>
+
+The role of the member (e.g., PRIMARY, SECONDARY).
+
+=item C<Txn in Q>
+
+The number of transactions in the queue pending conflict detection checks.
+
+=item C<Txn Checked>
+
+The number of transactions that have been checked for conflicts.
+
+=item C<Conflicts Detected>
+
+The number of transactions that have not passed the conflict detection check.
+
+=item C<Txn Rows Val>
+
+Number of transaction rows which can be used for certification but have not been garbage collected.
+
+=item C<Remote Txn in Applier Queue>
+
+The number of transactions that this member has received from the replication group and are waiting to be applied.
+
+=item C<Local Txn Proposed>
+
+Number of transactions proposed by this member.
+
+=item C<Local Txn Rollback>
+
+Number of transactions rolled back by this member.
+
+=item C<Last Txn wo Conflict>
+
+The transaction identifier of the last conflict-free transaction which was checked, with UUID removed.
+
+=item C<All mbr Txn Committed>
+
+The transactions that have been successfully committed on all members of the replication group, with UUID removed.
+
+=back
+
+Colors used to indicate member state and role:
+
+=over 4
+
+=item *
+
+C<member_state>:
+
+=over 4
+
+=item C<ONLINE>: green
+
+=item C<RECOVERING>: yellow
+
+=item C<OFFLINE>: blue
+
+=item C<ERROR>: white on red
+
+=item C<UNREACHABLE>: black on red
+
+=back
+
+=item *
+
+C<member_role>:
+
+=over 4
+
+=item C<PRIMARY>: green
+
+=item C<SECONDARY>: yellow
+
+=back
+
+=back
+
+This mode applies no filters by default and sorts by the C<CXN> column.
+
+=back
+
+=cut
 
 =item I: InnoDB I/O Info
 
