@@ -4,7 +4,7 @@
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
 Version:   1.15.3
-Release:   1%{?dist}
+Release:   2%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
 License:   GPL/Artistic
@@ -40,8 +40,8 @@ grep -rsl '^#!.*perl' . |
 grep -v '.bak$' |xargs --no-run-if-empty \
 %__perl -MExtUtils::MakeMaker -e 'MY->fixin(@ARGV)'
 CFLAGS="$RPM_OPT_FLAGS"
-%{__perl} Makefile.PL `%{__perl} -MExtUtils::MakeMaker -e ' print qq|PREFIX=%{buildroot}%{_prefix}| if \$ExtUtils::MakeMaker::VERSION =~ /5\.9[1-6]|6\.0[0-5]/ '`
-%{__make} 
+%{__perl} Makefile.PL PREFIX=%{_prefix} `%{__perl} -MExtUtils::MakeMaker -e ' print qq|PREFIX=%{buildroot}%{_prefix}| if \$ExtUtils::MakeMaker::VERSION =~ /5\.9[1-6]|6\.0[0-5]/ '`
+%{__make}
 %if %maketest
 %{__make} test
 %endif
