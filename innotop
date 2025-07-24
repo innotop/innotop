@@ -9975,6 +9975,9 @@ sub get_slave_status {
                      my $new_key = $key;
                      $new_key =~ s/^source_/master_/;
                      $res->{$new_key} = delete $res->{$key};
+                  } elsif ($key =~ /^seconds_behind_source/) {
+                     my $new_key = "seconds_behind_master";
+                     $res->{$new_key} = delete $res->{$key};
                   }
                }
 

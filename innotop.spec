@@ -4,7 +4,7 @@
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
 Version:   1.15.3
-Release:   2%{?dist}
+Release:   3%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
 License:   GPL/Artistic
