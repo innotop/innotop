@@ -571,7 +571,7 @@ sub parse_fk_section {
    return 0 unless $fulltext;
 
    my ( $ts, $type );
-   if ( ($mysqlversion =~ /^5.[67]\./) || ($mysqlversion =~ /^10.[0123]\./) ) {
+   if ( ($mysqlversion =~ /^5.[67]\./) || ($mysqlversion =~ /^8\.[01234]\./) || ($mysqlversion =~ /^10.[0123]\./) ) {
       ( $ts, $type ) = $fulltext =~ m/^([0-9-]* [0-9:]*)\s[0-9a-fx]*\s+(\w+)/m;
       $section->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
    } else {
