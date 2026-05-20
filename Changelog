@@ -1,5 +1,10 @@
 Changelog for innotop:
 
+2026-05-20: version 1.15.4
+	* Extend MySQL 9.x compatibility through the 9.x series.
+	* Keep replication status field normalization limited to fields used by built-in dashboards.
+	* Add tests for MySQL 9.x statement selection and InnoDB status parsing.
+
 2024-09-27: version 1.15.1
 	* Updated version check logic in SHOW_MASTER_LOGS and SHOW_MASTER_STATUS #204
 	* Added a zero division check for the $this_qps variable in the get_status_info function.
