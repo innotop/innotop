@@ -27,6 +27,19 @@ require "innotop";
    }
 }
 
+{
+   package TestSTH;
+   sub new {
+      my ( $class, $columns, $rows ) = @_;
+      return bless { NAME_lc => $columns, rows => $rows, pos => 0 }, $class;
+   }
+   sub fetchrow_hashref {
+      my ( $self ) = @_;
+      return if $self->{pos} >= @{ $self->{rows} };
+      return $self->{rows}->[ $self->{pos}++ ];
+   }
+}
+
 sub dbh_for {
    my ( $version ) = @_;
    return TestDBH->new($version);
@@ -203,6 +216,52 @@ ok(
    'MariaDB does not use TREE EXPLAIN',
 );
 
+ok(
+   !defined explain_analyze_sql_for(dbh_for('8.0.17'), 'SELECT 1'),
+   'MySQL before 8.0.18 does not use EXPLAIN ANALYZE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('8.0.18'), 'SELECT 1'),
+   "EXPLAIN ANALYZE\nSELECT 1",
+   'MySQL 8.0.18 uses EXPLAIN ANALYZE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('8.0.21'), 'SELECT 1'),
+   "EXPLAIN ANALYZE FORMAT=TREE\nSELECT 1",
+   'MySQL 8.0.21 uses EXPLAIN ANALYZE FORMAT=TREE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('8.0.45'), 'SELECT 1'),
+   "EXPLAIN ANALYZE FORMAT=TREE\nSELECT 1",
+   'MySQL 8.0.45 uses EXPLAIN ANALYZE FORMAT=TREE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('9.7.0'), 'SELECT 1'),
+   "EXPLAIN ANALYZE FORMAT=TREE\nSELECT 1",
+   'MySQL 9.7 uses EXPLAIN ANALYZE FORMAT=TREE',
+);
+
+ok(
+   !defined explain_analyze_sql_for(dbh_for('10.0.38-MariaDB'), 'SELECT 1'),
+   'MariaDB before 10.1 does not use ANALYZE statement',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('10.1.48-MariaDB'), 'SELECT 1'),
+   "ANALYZE\nSELECT 1",
+   'MariaDB 10.1 uses ANALYZE statement',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('10.11.0-MariaDB'), 'SELECT 1'),
+   "ANALYZE\nSELECT 1",
+   'MariaDB 10.11 uses ANALYZE statement',
+);
+
 is(
    explain_sql_for_optimized_query(dbh_for('9.7.0'), 'SELECT 1'),
    "EXPLAIN FORMAT=TRADITIONAL\nSELECT 1",
@@ -259,5 +318,37 @@ is_deeply(
    [ [ 'test-cxn', 'USE `qa-01_schema`' ] ],
    'use_query_database executes quoted USE statement',
 );
+
+is_deeply(
+   [ explain_text_result_lines(TestSTH->new([ 'explain' ], [ { explain => '-> scan' } ])) ],
+   [ '-> scan' ],
+   'single EXPLAIN column is displayed directly',
+);
+
+is_deeply(
+   [
+      explain_text_result_lines(TestSTH->new(
+         [ qw(id select_type table r_rows) ],
+         [ { id => 1, select_type => 'SIMPLE', table => 't1', r_rows => 10 } ],
+      )),
+   ],
+   [
+      "id\tselect_type\ttable\tr_rows",
+      "1\tSIMPLE\tt1\t10",
+   ],
+   'multi-column ANALYZE result preserves DBI column order',
+);
+
+{
+   no warnings qw(once redefine);
+   local *pause = sub { return 'y' };
+   ok(confirm_explain_analyze(), 'EXPLAIN ANALYZE confirmation accepts y');
+}
+
+{
+   no warnings qw(once redefine);
+   local *pause = sub { return 'n' };
+   ok(!confirm_explain_analyze(), 'EXPLAIN ANALYZE confirmation rejects non-y');
+}
 
 done_testing();

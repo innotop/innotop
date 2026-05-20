@@ -3,6 +3,7 @@ Changelog for innotop:
 2026-05-21: version 1.16.0
 	* Rework query EXPLAIN compatibility for modern MySQL.
 	* Add JSON and TREE EXPLAIN formats in query analysis.
+	* Add runtime EXPLAIN ANALYZE support in query analysis.
 	* Quote current database names during query analysis.
 
 2026-05-20: version 1.15.4

@@ -6257,6 +6257,50 @@ sub display_explain_tree {
    display_explain_text($info, 'TREE');
 }
 
+# display_explain_analyze {{{3
+sub display_explain_analyze {
+   my $info = shift;
+   my $cxn  = $info->{cxn};
+   my $db   = $info->{db};
+   my $meta = $dbhs{$cxn};
+
+   my ( $mods, $query ) = rewrite_for_explain($info->{query});
+   my @display_lines;
+
+   if ( $query ) {
+      my $analyze_query = explain_analyze_sql_for($meta->{dbh}, $query);
+
+      if ( !$analyze_query ) {
+         push @display_lines, '', 'EXPLAIN ANALYZE is not supported on this server.';
+      }
+      elsif ( !confirm_explain_analyze() ) {
+         push @display_lines, '', 'EXPLAIN ANALYZE cancelled.';
+      }
+      else {
+         push @display_lines, no_ctrl_char($analyze_query);
+
+         eval {
+            use_query_database($cxn, $meta->{dbh}, $db);
+            my $sth = do_query($cxn, $analyze_query);
+            push @display_lines, explain_text_result_lines($sth);
+         };
+
+         if ( $EVAL_ERROR ) {
+            push @display_lines, '', "EXPLAIN ANALYZE could not be generated: $EVAL_ERROR";
+         }
+      }
+   }
+   else {
+      push @display_lines, '', 'EXPLAIN ANALYZE could not be generated.';
+   }
+
+   if ( $mods ) {
+      push @display_lines, '', '[This query has been re-written to be explainable]';
+   }
+
+   draw_screen(\@display_lines, { raw => 1 } );
+}
+
 # display_explain_text {{{3
 sub display_explain_text {
    my ( $info, $format ) = @_;
@@ -6279,15 +6323,7 @@ sub display_explain_text {
          eval {
             use_query_database($cxn, $meta->{dbh}, $db);
             my $sth = do_query($cxn, $explain_query);
-            my $res;
-            while ( $res = $sth->fetchrow_hashref() ) {
-               if ( exists $res->{EXPLAIN} || exists $res->{explain} ) {
-                  push @display_lines, no_ctrl_char($res->{EXPLAIN} || $res->{explain});
-               }
-               else {
-                  push @display_lines, no_ctrl_char(join("\t", map { $res->{$_} || '' } sort keys %$res));
-               }
-            }
+            push @display_lines, explain_text_result_lines($sth);
          };
 
          if ( $EVAL_ERROR ) {
@@ -6385,6 +6421,52 @@ sub explain_sql_for_optimized_query {
       if explain_uses_format_traditional($dbh);
 
    return "EXPLAIN EXTENDED\n" . $query;
+}
+
+# explain_analyze_sql_for {{{3
+sub explain_analyze_sql_for {
+   my ( $dbh, $query ) = @_;
+
+   if ( explain_server_is_mariadb($dbh) ) {
+      return unless version_ge($dbh, '10.1.0');
+      return "ANALYZE\n" . $query;
+   }
+
+   return unless version_ge($dbh, '8.0.18');
+   return "EXPLAIN ANALYZE FORMAT=TREE\n" . $query
+      if version_ge($dbh, '8.0.21');
+   return "EXPLAIN ANALYZE\n" . $query;
+}
+
+# explain_text_result_lines {{{3
+sub explain_text_result_lines {
+   my ( $sth ) = @_;
+   my @columns = @{ $sth->{NAME_lc} || $sth->{NAME} || [] };
+   my @lines;
+
+   while ( my $res = $sth->fetchrow_hashref('NAME_lc') ) {
+      if ( exists $res->{EXPLAIN} || exists $res->{explain} ) {
+         my $text = exists $res->{EXPLAIN} ? $res->{EXPLAIN} : $res->{explain};
+         push @lines, no_ctrl_char($text);
+      }
+      elsif ( @columns ) {
+         unless ( @lines ) {
+            push @lines, no_ctrl_char(join("\t", @columns));
+         }
+         push @lines, no_ctrl_char(join("\t", map { defined $res->{$_} ? $res->{$_} : '' } @columns));
+      }
+      else {
+         push @lines, no_ctrl_char(join("\t", map { defined $res->{$_} ? $res->{$_} : '' } sort keys %$res));
+      }
+   }
+
+   return @lines;
+}
+
+# confirm_explain_analyze {{{3
+sub confirm_explain_analyze {
+   my $answer = pause('EXPLAIN ANALYZE executes the query. Continue? y/N ');
+   return $answer && $answer =~ m/y/i;
 }
 
 # use_query_database {{{3
@@ -10010,6 +10092,7 @@ sub analyze_query {
    return unless $info;
 
    my %actions = (
+      a => \&display_explain_analyze,
       e => \&display_explain,
       f => \&show_full_query,
       j => \&display_explain_json,
@@ -10019,7 +10102,7 @@ sub analyze_query {
    do {
       $actions{$action}->($info);
       print "\n";
-      $action = pause('Press e to explain, j for JSON, t for TREE, f for full query, o for optimized query');
+      $action = pause('Press e to explain, a to analyze, j for JSON, t for TREE, f for full query, o for optimized query');
    } while ( exists($actions{$action}) );
 }
 
@@ -10943,11 +11026,13 @@ innotop hides inactive processes and its own process.  You can toggle these on
 and off with the 'i' and 'a' keys.
 
 You can EXPLAIN a query from this mode with the 'e' key.  This displays the
-query's full text and the tabular results of EXPLAIN.  You can also use 'j' and
-'t' from the query analysis prompt to display EXPLAIN FORMAT=JSON and EXPLAIN
-FORMAT=TREE where the server supports them, and 'o' to display optimizer rewrite
-notes.  innotop also tries to rewrite certain queries to make them EXPLAIN-able.
-For example, INSERT/SELECT statements are rewritable.
+query's full text and the tabular results of EXPLAIN.  You can also use 'a' to
+run EXPLAIN ANALYZE where the server supports it, 'j' and 't' from the query
+analysis prompt to display EXPLAIN FORMAT=JSON and EXPLAIN FORMAT=TREE, and 'o'
+to display optimizer rewrite notes.  EXPLAIN ANALYZE executes the query, so
+innotop asks for confirmation before running it.  innotop also tries to rewrite
+certain queries to make them EXPLAIN-able.  For example, INSERT/SELECT
+statements are rewritable.
 
 This mode displays the L<"q_header"> and L<"processlist"> tables by default.
 

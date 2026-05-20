@@ -124,6 +124,7 @@ find %{buildroot}%{_prefix}             \
 %changelog
 * Thu May 21 2026 Innotop Developers <eslocombe@gmail.com> - 1.16.0-1
  - Rework query EXPLAIN compatibility for modern MySQL
+ - Add runtime EXPLAIN ANALYZE support in query analysis
  - Quote database names during query analysis
 
 * Wed May 20 2026 Innotop Developers <eslocombe@gmail.com> - 1.15.4-1
