@@ -6205,9 +6205,7 @@ sub display_explain {
       my $explain_query = explain_sql_for($meta->{dbh}, $query, 'TRADITIONAL');
 
       eval {
-         if ( $db ) {
-            do_query($cxn, "use $db");
-         }
+         use_query_database($cxn, $meta->{dbh}, $db);
          my $sth = do_query($cxn, $explain_query);
 
          my $res;
@@ -6229,7 +6227,9 @@ sub display_explain {
             '',
             "The query could not be explained.  Only SELECT queries and SELECT "
             . "parts of some INSERT, REPLACE, and CREATE TABLE queries can be "
-            . "explained.";
+            . "explained.",
+            '',
+            "Error: $EVAL_ERROR";
       }
 
    }
@@ -6277,9 +6277,7 @@ sub display_explain_text {
          push @display_lines, no_ctrl_char($explain_query);
 
          eval {
-            if ( $db ) {
-               do_query($cxn, "use $db");
-            }
+            use_query_database($cxn, $meta->{dbh}, $db);
             my $sth = do_query($cxn, $explain_query);
             my $res;
             while ( $res = $sth->fetchrow_hashref() ) {
@@ -6387,6 +6385,19 @@ sub explain_sql_for_optimized_query {
       if explain_uses_format_traditional($dbh);
 
    return "EXPLAIN EXTENDED\n" . $query;
+}
+
+# use_query_database {{{3
+sub use_query_database {
+   my ( $cxn, $dbh, $db ) = @_;
+   return unless defined $db && length $db;
+   return do_query($cxn, use_database_sql_for($dbh, $db));
+}
+
+# use_database_sql_for {{{3
+sub use_database_sql_for {
+   my ( $dbh, $db ) = @_;
+   return 'USE ' . $dbh->quote_identifier($db);
 }
 
 # explain_uses_format_traditional {{{3
@@ -6609,9 +6620,7 @@ sub show_optimized_query {
       push @display_lines, no_ctrl_char($info->{query});
 
       eval {
-         if ( $db ) {
-            do_query($cxn, "use $db");
-         }
+         use_query_database($cxn, $meta->{dbh}, $db);
          do_query( $cxn, explain_sql_for_optimized_query($meta->{dbh}, $query) )
             or die "Can't explain query";
          my $sth = do_query($cxn, 'SHOW WARNINGS');

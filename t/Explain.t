@@ -14,9 +14,22 @@ BEGIN {
 
 require "innotop";
 
+{
+   package TestDBH;
+   sub new {
+      my ( $class, $version ) = @_;
+      return bless { mysql_serverinfo => $version }, $class;
+   }
+   sub quote_identifier {
+      my ( undef, $identifier ) = @_;
+      $identifier =~ s/`/``/g;
+      return "`$identifier`";
+   }
+}
+
 sub dbh_for {
    my ( $version ) = @_;
-   return { mysql_serverinfo => $version };
+   return TestDBH->new($version);
 }
 
 sub rewrite_is {
@@ -206,6 +219,45 @@ is(
    explain_sql_for_optimized_query(dbh_for('10.11.0-MariaDB'), 'SELECT 1'),
    "EXPLAIN EXTENDED\nSELECT 1",
    'MariaDB optimized query keeps EXPLAIN EXTENDED',
+);
+
+my %use_sql_for = (
+   '0'                 => 'USE `0`',
+   '123_schema'        => 'USE `123_schema`',
+   'dash-name_test'    => 'USE `dash-name_test`',
+   'qa-01_schema'      => 'USE `qa-01_schema`',
+   'select'            => 'USE `select`',
+   'schema with space' => 'USE `schema with space`',
+   'schema`tick'       => 'USE `schema``tick`',
+);
+
+foreach my $db ( sort keys %use_sql_for ) {
+   is(
+      use_database_sql_for(dbh_for('8.0.45'), $db),
+      $use_sql_for{$db},
+      "USE quotes synthetic database name $db",
+   );
+}
+
+my @do_query_calls;
+{
+   no warnings qw(once redefine);
+   local *do_query = sub {
+      push @do_query_calls, [ @_ ];
+      return 'used';
+   };
+
+   is(
+      use_query_database('test-cxn', dbh_for('8.0.45'), 'qa-01_schema'),
+      'used',
+      'use_query_database returns do_query result',
+   );
+}
+
+is_deeply(
+   \@do_query_calls,
+   [ [ 'test-cxn', 'USE `qa-01_schema`' ] ],
+   'use_query_database executes quoted USE statement',
 );
 
 done_testing();
