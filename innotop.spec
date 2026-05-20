@@ -3,7 +3,7 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.15.4
+Version:   1.16.0
 Release:   1%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
@@ -122,6 +122,10 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Thu May 21 2026 Innotop Developers <eslocombe@gmail.com> - 1.16.0-1
+ - Rework query EXPLAIN compatibility for modern MySQL
+ - Quote database names during query analysis
+
 * Wed May 20 2026 Innotop Developers <eslocombe@gmail.com> - 1.15.4-1
  - Extend MySQL 9.x compatibility
 
