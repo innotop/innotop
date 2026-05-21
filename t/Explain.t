@@ -1,0 +1,354 @@
+#!/usr/bin/perl
+use strict;
+use warnings FATAL => 'all';
+use Test::More;
+
+my $path;
+BEGIN {
+   my $pwd = `pwd`;
+   chomp $pwd;
+   $path = "$pwd/$0";
+   $path =~ s{/[^/]+/[^/]+$}{/};
+   unshift @INC, $path;
+};
+
+require "innotop";
+
+{
+   package TestDBH;
+   sub new {
+      my ( $class, $version ) = @_;
+      return bless { mysql_serverinfo => $version }, $class;
+   }
+   sub quote_identifier {
+      my ( undef, $identifier ) = @_;
+      $identifier =~ s/`/``/g;
+      return "`$identifier`";
+   }
+}
+
+{
+   package TestSTH;
+   sub new {
+      my ( $class, $columns, $rows ) = @_;
+      return bless { NAME_lc => $columns, rows => $rows, pos => 0 }, $class;
+   }
+   sub fetchrow_hashref {
+      my ( $self ) = @_;
+      return if $self->{pos} >= @{ $self->{rows} };
+      return $self->{rows}->[ $self->{pos}++ ];
+   }
+}
+
+sub dbh_for {
+   my ( $version ) = @_;
+   return TestDBH->new($version);
+}
+
+sub rewrite_is {
+   my ( $sql, $want_mods, $want_query, $name ) = @_;
+   my ( $got_mods, $got_query ) = rewrite_for_explain($sql);
+   is( $got_mods ? 1 : 0, $want_mods ? 1 : 0, "$name modifies flag" );
+   is( $got_query, $want_query, "$name rewritten query" );
+}
+
+sub rewrite_is_undef {
+   my ( $sql, $name ) = @_;
+   my ( $got_mods, $got_query ) = rewrite_for_explain($sql);
+   is( $got_mods ? 1 : 0, 0, "$name modifies flag" );
+   ok( !defined $got_query, "$name is not explainable" );
+}
+
+rewrite_is(
+   'SELECT 1',
+   0,
+   'SELECT 1',
+   'plain SELECT',
+);
+
+rewrite_is(
+   'WITH c AS (SELECT 1) SELECT * FROM c',
+   0,
+   'WITH c AS (SELECT 1) SELECT * FROM c',
+   'WITH SELECT',
+);
+
+rewrite_is(
+   'INSERT INTO dst SELECT * FROM src',
+   1,
+   'SELECT * FROM src',
+   'INSERT SELECT',
+);
+
+rewrite_is(
+   'REPLACE INTO dst SELECT * FROM src',
+   1,
+   'SELECT * FROM src',
+   'REPLACE SELECT',
+);
+
+rewrite_is(
+   'INSERT INTO dst WITH c AS (SELECT 1) SELECT * FROM c',
+   1,
+   'WITH c AS (SELECT 1) SELECT * FROM c',
+   'INSERT WITH SELECT',
+);
+
+rewrite_is(
+   'CREATE TEMPORARY TABLE dst AS SELECT * FROM src',
+   1,
+   'SELECT * FROM src',
+   'CREATE TEMPORARY TABLE AS SELECT',
+);
+
+rewrite_is(
+   'CREATE TABLE dst (id int) AS WITH c AS (SELECT 1) SELECT * FROM c',
+   1,
+   'WITH c AS (SELECT 1) SELECT * FROM c',
+   'CREATE TABLE AS WITH SELECT',
+);
+
+rewrite_is(
+   "INSERT INTO dst SELECT 'on duplicate key update' AS txt FROM src ON DUPLICATE KEY UPDATE txt = VALUES(txt)",
+   1,
+   "SELECT 'on duplicate key update' AS txt FROM src",
+   'INSERT SELECT strips ON DUPLICATE KEY UPDATE',
+);
+
+rewrite_is(
+   'SELECT `from` FROM src WHERE txt = "INSERT INTO x SELECT y"',
+   0,
+   'SELECT `from` FROM src WHERE txt = "INSERT INTO x SELECT y"',
+   'quoted strings and identifiers in SELECT',
+);
+
+rewrite_is_undef(
+   "INSERT INTO dst VALUES ('SELECT 1')",
+   'INSERT VALUES',
+);
+
+rewrite_is_undef(
+   'INSERT INTO my$select VALUES (1)',
+   'identifier containing select',
+);
+
+rewrite_is_undef(
+   'UPDATE dst SET a = (SELECT 1)',
+   'UPDATE with subquery',
+);
+
+rewrite_is_undef(
+   'DELETE FROM dst WHERE id IN (SELECT id FROM src)',
+   'DELETE with subquery',
+);
+
+rewrite_is_undef(
+   'WITH c AS (SELECT 1) UPDATE dst SET a = 1',
+   'WITH UPDATE',
+);
+
+rewrite_is_undef(
+   "/* SELECT 1 */ INSERT INTO dst VALUES ('SELECT 1')",
+   'comments are ignored',
+);
+
+is(
+   explain_sql_for(dbh_for('5.0.96'), 'SELECT 1', 'TRADITIONAL'),
+   "EXPLAIN\nSELECT 1",
+   'MySQL 5.0 uses plain EXPLAIN',
+);
+
+is(
+   explain_sql_for(dbh_for('5.7.44'), 'SELECT 1', 'TRADITIONAL'),
+   "EXPLAIN PARTITIONS\nSELECT 1",
+   'MySQL 5.7 keeps EXPLAIN PARTITIONS',
+);
+
+is(
+   explain_sql_for(dbh_for('8.0.36'), 'SELECT 1', 'TRADITIONAL'),
+   "EXPLAIN FORMAT=TRADITIONAL\nSELECT 1",
+   'MySQL 8.0 uses FORMAT=TRADITIONAL',
+);
+
+is(
+   explain_sql_for(dbh_for('8.4.0'), 'SELECT 1', 'TRADITIONAL'),
+   "EXPLAIN FORMAT=TRADITIONAL\nSELECT 1",
+   'MySQL 8.4 uses FORMAT=TRADITIONAL',
+);
+
+is(
+   explain_sql_for(dbh_for('9.7.0'), 'SELECT 1', 'TRADITIONAL'),
+   "EXPLAIN FORMAT=TRADITIONAL\nSELECT 1",
+   'MySQL 9.7 uses FORMAT=TRADITIONAL',
+);
+
+is(
+   explain_sql_for(dbh_for('10.11.0-MariaDB'), 'SELECT 1', 'TRADITIONAL'),
+   "EXPLAIN PARTITIONS\nSELECT 1",
+   'MariaDB keeps EXPLAIN PARTITIONS',
+);
+
+is(
+   explain_sql_for(dbh_for('9.7.0'), 'SELECT 1', 'JSON'),
+   "EXPLAIN FORMAT=JSON\nSELECT 1",
+   'MySQL 9.7 JSON EXPLAIN',
+);
+
+is(
+   explain_sql_for(dbh_for('10.11.0-MariaDB'), 'SELECT 1', 'JSON'),
+   "EXPLAIN FORMAT=JSON\nSELECT 1",
+   'MariaDB JSON EXPLAIN',
+);
+
+is(
+   explain_sql_for(dbh_for('9.7.0'), 'SELECT 1', 'TREE'),
+   "EXPLAIN FORMAT=TREE\nSELECT 1",
+   'MySQL 9.7 TREE EXPLAIN',
+);
+
+ok(
+   !defined explain_sql_for(dbh_for('8.0.15'), 'SELECT 1', 'TREE'),
+   'MySQL before 8.0.16 does not use TREE EXPLAIN',
+);
+
+ok(
+   !defined explain_sql_for(dbh_for('10.11.0-MariaDB'), 'SELECT 1', 'TREE'),
+   'MariaDB does not use TREE EXPLAIN',
+);
+
+ok(
+   !defined explain_analyze_sql_for(dbh_for('8.0.17'), 'SELECT 1'),
+   'MySQL before 8.0.18 does not use EXPLAIN ANALYZE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('8.0.18'), 'SELECT 1'),
+   "EXPLAIN ANALYZE\nSELECT 1",
+   'MySQL 8.0.18 uses EXPLAIN ANALYZE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('8.0.21'), 'SELECT 1'),
+   "EXPLAIN ANALYZE FORMAT=TREE\nSELECT 1",
+   'MySQL 8.0.21 uses EXPLAIN ANALYZE FORMAT=TREE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('8.0.45'), 'SELECT 1'),
+   "EXPLAIN ANALYZE FORMAT=TREE\nSELECT 1",
+   'MySQL 8.0.45 uses EXPLAIN ANALYZE FORMAT=TREE',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('9.7.0'), 'SELECT 1'),
+   "EXPLAIN ANALYZE FORMAT=TREE\nSELECT 1",
+   'MySQL 9.7 uses EXPLAIN ANALYZE FORMAT=TREE',
+);
+
+ok(
+   !defined explain_analyze_sql_for(dbh_for('10.0.38-MariaDB'), 'SELECT 1'),
+   'MariaDB before 10.1 does not use ANALYZE statement',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('10.1.48-MariaDB'), 'SELECT 1'),
+   "ANALYZE\nSELECT 1",
+   'MariaDB 10.1 uses ANALYZE statement',
+);
+
+is(
+   explain_analyze_sql_for(dbh_for('10.11.0-MariaDB'), 'SELECT 1'),
+   "ANALYZE\nSELECT 1",
+   'MariaDB 10.11 uses ANALYZE statement',
+);
+
+is(
+   explain_sql_for_optimized_query(dbh_for('9.7.0'), 'SELECT 1'),
+   "EXPLAIN FORMAT=TRADITIONAL\nSELECT 1",
+   'MySQL 9.7 optimized query uses FORMAT=TRADITIONAL',
+);
+
+is(
+   explain_sql_for_optimized_query(dbh_for('5.7.44'), 'SELECT 1'),
+   "EXPLAIN EXTENDED\nSELECT 1",
+   'MySQL 5.7 optimized query keeps EXPLAIN EXTENDED',
+);
+
+is(
+   explain_sql_for_optimized_query(dbh_for('10.11.0-MariaDB'), 'SELECT 1'),
+   "EXPLAIN EXTENDED\nSELECT 1",
+   'MariaDB optimized query keeps EXPLAIN EXTENDED',
+);
+
+my %use_sql_for = (
+   '0'                 => 'USE `0`',
+   '123_schema'        => 'USE `123_schema`',
+   'dash-name_test'    => 'USE `dash-name_test`',
+   'qa-01_schema'      => 'USE `qa-01_schema`',
+   'select'            => 'USE `select`',
+   'schema with space' => 'USE `schema with space`',
+   'schema`tick'       => 'USE `schema``tick`',
+);
+
+foreach my $db ( sort keys %use_sql_for ) {
+   is(
+      use_database_sql_for(dbh_for('8.0.45'), $db),
+      $use_sql_for{$db},
+      "USE quotes synthetic database name $db",
+   );
+}
+
+my @do_query_calls;
+{
+   no warnings qw(once redefine);
+   local *do_query = sub {
+      push @do_query_calls, [ @_ ];
+      return 'used';
+   };
+
+   is(
+      use_query_database('test-cxn', dbh_for('8.0.45'), 'qa-01_schema'),
+      'used',
+      'use_query_database returns do_query result',
+   );
+}
+
+is_deeply(
+   \@do_query_calls,
+   [ [ 'test-cxn', 'USE `qa-01_schema`' ] ],
+   'use_query_database executes quoted USE statement',
+);
+
+is_deeply(
+   [ explain_text_result_lines(TestSTH->new([ 'explain' ], [ { explain => '-> scan' } ])) ],
+   [ '-> scan' ],
+   'single EXPLAIN column is displayed directly',
+);
+
+is_deeply(
+   [
+      explain_text_result_lines(TestSTH->new(
+         [ qw(id select_type table r_rows) ],
+         [ { id => 1, select_type => 'SIMPLE', table => 't1', r_rows => 10 } ],
+      )),
+   ],
+   [
+      "id\tselect_type\ttable\tr_rows",
+      "1\tSIMPLE\tt1\t10",
+   ],
+   'multi-column ANALYZE result preserves DBI column order',
+);
+
+{
+   no warnings qw(once redefine);
+   local *pause = sub { return 'y' };
+   ok(confirm_explain_analyze(), 'EXPLAIN ANALYZE confirmation accepts y');
+}
+
+{
+   no warnings qw(once redefine);
+   local *pause = sub { return 'n' };
+   ok(!confirm_explain_analyze(), 'EXPLAIN ANALYZE confirmation rejects non-y');
+}
+
+done_testing();

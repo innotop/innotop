@@ -22,7 +22,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.15.4';
+our $VERSION = '1.16.0';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -6194,6 +6194,7 @@ sub display_explain {
    my $info = shift;
    my $cxn   = $info->{cxn};
    my $db    = $info->{db};
+   my $meta  = $dbhs{$cxn};
 
    my ( $mods, $query ) = rewrite_for_explain($info->{query});
 
@@ -6201,14 +6202,11 @@ sub display_explain {
 
    if ( $query ) {
 
-      my $part = version_ge($dbhs{$cxn}->{dbh}, '5.1.5') && ($dbhs{$cxn}->{dbh}->{mysql_serverinfo} !~ /^8\.0\./) ? 'PARTITIONS' : '';
-      $query = "EXPLAIN $part\n" . $query;
+      my $explain_query = explain_sql_for($meta->{dbh}, $query, 'TRADITIONAL');
 
       eval {
-         if ( $db ) {
-            do_query($cxn, "use $db");
-         }
-         my $sth = do_query($cxn, $query);
+         use_query_database($cxn, $meta->{dbh}, $db);
+         my $sth = do_query($cxn, $explain_query);
 
          my $res;
          while ( $res = $sth->fetchrow_hashref() ) {
@@ -6222,12 +6220,16 @@ sub display_explain {
          }
       };
 
+      $query = $explain_query;
+
       if ( $EVAL_ERROR ) {
          push @display_lines,
             '',
-            "The query could not be explained.  Only SELECT queries can be "
-            . "explained; innotop tries to rewrite certain REPLACE and INSERT queries "
-            . "into SELECT, but this doesn't always succeed.";
+            "The query could not be explained.  Only SELECT queries and SELECT "
+            . "parts of some INSERT, REPLACE, and CREATE TABLE queries can be "
+            . "explained.",
+            '',
+            "Error: $EVAL_ERROR";
       }
 
    }
@@ -6243,18 +6245,436 @@ sub display_explain {
    draw_screen(\@display_lines, { raw => 1 } );
 }
 
+# display_explain_json {{{3
+sub display_explain_json {
+   my $info = shift;
+   display_explain_text($info, 'JSON');
+}
+
+# display_explain_tree {{{3
+sub display_explain_tree {
+   my $info = shift;
+   display_explain_text($info, 'TREE');
+}
+
+# display_explain_analyze {{{3
+sub display_explain_analyze {
+   my $info = shift;
+   my $cxn  = $info->{cxn};
+   my $db   = $info->{db};
+   my $meta = $dbhs{$cxn};
+
+   my ( $mods, $query ) = rewrite_for_explain($info->{query});
+   my @display_lines;
+
+   if ( $query ) {
+      my $analyze_query = explain_analyze_sql_for($meta->{dbh}, $query);
+
+      if ( !$analyze_query ) {
+         push @display_lines, '', 'EXPLAIN ANALYZE is not supported on this server.';
+      }
+      elsif ( !confirm_explain_analyze() ) {
+         push @display_lines, '', 'EXPLAIN ANALYZE cancelled.';
+      }
+      else {
+         push @display_lines, no_ctrl_char($analyze_query);
+
+         eval {
+            use_query_database($cxn, $meta->{dbh}, $db);
+            my $sth = do_query($cxn, $analyze_query);
+            push @display_lines, explain_text_result_lines($sth);
+         };
+
+         if ( $EVAL_ERROR ) {
+            push @display_lines, '', "EXPLAIN ANALYZE could not be generated: $EVAL_ERROR";
+         }
+      }
+   }
+   else {
+      push @display_lines, '', 'EXPLAIN ANALYZE could not be generated.';
+   }
+
+   if ( $mods ) {
+      push @display_lines, '', '[This query has been re-written to be explainable]';
+   }
+
+   draw_screen(\@display_lines, { raw => 1 } );
+}
+
+# display_explain_text {{{3
+sub display_explain_text {
+   my ( $info, $format ) = @_;
+   my $cxn  = $info->{cxn};
+   my $db   = $info->{db};
+   my $meta = $dbhs{$cxn};
+
+   my ( $mods, $query ) = rewrite_for_explain($info->{query});
+   my @display_lines;
+
+   if ( $query ) {
+      my $explain_query = explain_sql_for($meta->{dbh}, $query, $format);
+
+      if ( !$explain_query ) {
+         push @display_lines, '', "EXPLAIN FORMAT=$format is not supported on this server.";
+      }
+      else {
+         push @display_lines, no_ctrl_char($explain_query);
+
+         eval {
+            use_query_database($cxn, $meta->{dbh}, $db);
+            my $sth = do_query($cxn, $explain_query);
+            push @display_lines, explain_text_result_lines($sth);
+         };
+
+         if ( $EVAL_ERROR ) {
+            push @display_lines, '', "EXPLAIN FORMAT=$format could not be generated: $EVAL_ERROR";
+         }
+      }
+   }
+   else {
+      push @display_lines, '', "EXPLAIN FORMAT=$format could not be generated.";
+   }
+
+   if ( $mods ) {
+      push @display_lines, '', '[This query has been re-written to be explainable]';
+   }
+
+   draw_screen(\@display_lines, { raw => 1 } );
+}
+
 # rewrite_for_explain {{{3
 sub rewrite_for_explain {
    my $query = shift;
 
-   my $mods = 0;
-   my $orig = $query;
-   $mods += $query =~ s/^\s*(?:replace|insert).*?select/select/is;
-   $mods += $query =~ s/^
-      \s*create\s+(?:temporary\s+)?table
-      \s+(?:\S+\s+)as\s+select/select/xis;
-   $mods += $query =~ s/\s+on\s+duplicate\s+key\s+update.*$//is;
-   return ( $mods, $query );
+   return ( 0, undef ) unless defined $query;
+
+   my @tokens = sql_top_level_keywords($query);
+   return ( 0, undef ) unless @tokens;
+
+   my $first = lc($tokens[0]->{word});
+
+   if ( $first eq 'select' ) {
+      return ( 0, $query );
+   }
+
+   if ( $first eq 'with' ) {
+      return ( 0, $query ) if sql_with_main_statement_is_select(\@tokens, 0);
+      return ( 0, undef );
+   }
+
+   if ( $first eq 'insert' || $first eq 'replace' ) {
+      my $select_pos = sql_select_part_pos(\@tokens, 1);
+      if ( defined $select_pos ) {
+         my $rewritten = substr($query, $select_pos);
+         $rewritten = strip_on_duplicate_key_update($rewritten);
+         return ( 1, $rewritten );
+      }
+      return ( 0, undef );
+   }
+
+   if ( $first eq 'create' ) {
+      my $select_pos = sql_create_select_part_pos(\@tokens);
+      if ( defined $select_pos ) {
+         return ( 1, substr($query, $select_pos) );
+      }
+      return ( 0, undef );
+   }
+
+   return ( 0, undef );
+}
+
+# explain_sql_for {{{3
+sub explain_sql_for {
+   my ( $dbh, $query, $format ) = @_;
+   $format ||= 'TRADITIONAL';
+
+   if ( $format eq 'TRADITIONAL' ) {
+      return explain_traditional_sql_for($dbh, $query);
+   }
+   elsif ( $format eq 'JSON' ) {
+      return "EXPLAIN FORMAT=JSON\n" . $query;
+   }
+   elsif ( $format eq 'TREE' ) {
+      return unless explain_supports_tree($dbh);
+      return "EXPLAIN FORMAT=TREE\n" . $query;
+   }
+
+   return;
+}
+
+# explain_traditional_sql_for {{{3
+sub explain_traditional_sql_for {
+   my ( $dbh, $query ) = @_;
+
+   return "EXPLAIN FORMAT=TRADITIONAL\n" . $query
+      if explain_uses_format_traditional($dbh);
+
+   my $part = version_ge($dbh, '5.1.5') ? ' PARTITIONS' : '';
+   return "EXPLAIN$part\n" . $query;
+}
+
+# explain_sql_for_optimized_query {{{3
+sub explain_sql_for_optimized_query {
+   my ( $dbh, $query ) = @_;
+
+   return explain_traditional_sql_for($dbh, $query)
+      if explain_uses_format_traditional($dbh);
+
+   return "EXPLAIN EXTENDED\n" . $query;
+}
+
+# explain_analyze_sql_for {{{3
+sub explain_analyze_sql_for {
+   my ( $dbh, $query ) = @_;
+
+   if ( mysql_is_mariadb($dbh) ) {
+      return unless version_ge($dbh, '10.1.0');
+      return "ANALYZE\n" . $query;
+   }
+
+   return unless version_ge($dbh, '8.0.18');
+   return "EXPLAIN ANALYZE FORMAT=TREE\n" . $query
+      if version_ge($dbh, '8.0.21');
+   return "EXPLAIN ANALYZE\n" . $query;
+}
+
+# explain_text_result_lines {{{3
+sub explain_text_result_lines {
+   my ( $sth ) = @_;
+   my @columns = @{ $sth->{NAME_lc} || $sth->{NAME} || [] };
+   my @lines;
+
+   while ( my $res = $sth->fetchrow_hashref('NAME_lc') ) {
+      if ( exists $res->{EXPLAIN} || exists $res->{explain} ) {
+         my $text = exists $res->{EXPLAIN} ? $res->{EXPLAIN} : $res->{explain};
+         push @lines, no_ctrl_char($text);
+      }
+      elsif ( @columns ) {
+         unless ( @lines ) {
+            push @lines, no_ctrl_char(join("\t", @columns));
+         }
+         push @lines, no_ctrl_char(join("\t", map { defined $res->{$_} ? $res->{$_} : '' } @columns));
+      }
+      else {
+         push @lines, no_ctrl_char(join("\t", map { defined $res->{$_} ? $res->{$_} : '' } sort keys %$res));
+      }
+   }
+
+   return @lines;
+}
+
+# confirm_explain_analyze {{{3
+sub confirm_explain_analyze {
+   my $answer = pause('EXPLAIN ANALYZE executes the query. Continue? y/N ');
+   return $answer && $answer =~ m/y/i;
+}
+
+# use_query_database {{{3
+sub use_query_database {
+   my ( $cxn, $dbh, $db ) = @_;
+   return unless defined $db && length $db;
+   return do_query($cxn, use_database_sql_for($dbh, $db));
+}
+
+# use_database_sql_for {{{3
+sub use_database_sql_for {
+   my ( $dbh, $db ) = @_;
+   return 'USE ' . $dbh->quote_identifier($db);
+}
+
+# explain_uses_format_traditional {{{3
+sub explain_uses_format_traditional {
+   my ( $dbh ) = @_;
+   return !mysql_is_mariadb($dbh) && version_ge($dbh, '8.0.0');
+}
+
+# explain_supports_tree {{{3
+sub explain_supports_tree {
+   my ( $dbh ) = @_;
+   return !mysql_is_mariadb($dbh) && version_ge($dbh, '8.0.16');
+}
+
+# sql_top_level_keywords {{{3
+sub sql_top_level_keywords {
+   my ( $query ) = @_;
+   my @tokens;
+   my $len   = length($query);
+   my $depth = 0;
+   my $i     = 0;
+
+   while ( $i < $len ) {
+      my $ch = substr($query, $i, 1);
+      my $next = $i + 1 < $len ? substr($query, $i + 1, 1) : '';
+
+      if ( $ch =~ m/\s/ ) {
+         $i++;
+      }
+      elsif ( $ch eq "'" || $ch eq '"' ) {
+         $i = sql_skip_quoted_string($query, $i, $ch);
+      }
+      elsif ( $ch eq '`' ) {
+         $i = sql_skip_quoted_identifier($query, $i);
+      }
+      elsif ( $ch eq '#' ) {
+         $i = sql_skip_line_comment($query, $i);
+      }
+      elsif ( $ch eq '-' && $next eq '-' && sql_dash_dash_starts_comment($query, $i) ) {
+         $i = sql_skip_line_comment($query, $i + 2);
+      }
+      elsif ( $ch eq '/' && $next eq '*' ) {
+         $i = sql_skip_block_comment($query, $i);
+      }
+      elsif ( $ch eq '(' ) {
+         $depth++;
+         $i++;
+      }
+      elsif ( $ch eq ')' ) {
+         $depth-- if $depth > 0;
+         $i++;
+      }
+      elsif ( $depth == 0 && $ch =~ m/[A-Za-z_]/ ) {
+         my $start = $i;
+         $i++ while $i < $len && substr($query, $i, 1) =~ m/[A-Za-z0-9_\$]/;
+         push @tokens, { word => substr($query, $start, $i - $start), pos => $start };
+      }
+      else {
+         $i++;
+      }
+   }
+
+   return @tokens;
+}
+
+# sql_skip_quoted_string {{{3
+sub sql_skip_quoted_string {
+   my ( $query, $pos, $quote ) = @_;
+   my $len = length($query);
+   my $i   = $pos + 1;
+
+   while ( $i < $len ) {
+      my $ch = substr($query, $i, 1);
+      my $next = $i + 1 < $len ? substr($query, $i + 1, 1) : '';
+
+      if ( $ch eq '\\' ) {
+         $i += 2;
+      }
+      elsif ( $ch eq $quote && $next eq $quote ) {
+         $i += 2;
+      }
+      elsif ( $ch eq $quote ) {
+         return $i + 1;
+      }
+      else {
+         $i++;
+      }
+   }
+
+   return $len;
+}
+
+# sql_skip_quoted_identifier {{{3
+sub sql_skip_quoted_identifier {
+   my ( $query, $pos ) = @_;
+   my $len = length($query);
+   my $i   = $pos + 1;
+
+   while ( $i < $len ) {
+      my $ch = substr($query, $i, 1);
+      my $next = $i + 1 < $len ? substr($query, $i + 1, 1) : '';
+      if ( $ch eq '`' && $next eq '`' ) {
+         $i += 2;
+      }
+      elsif ( $ch eq '`' ) {
+         return $i + 1;
+      }
+      else {
+         $i++;
+      }
+   }
+
+   return $len;
+}
+
+# sql_dash_dash_starts_comment {{{3
+sub sql_dash_dash_starts_comment {
+   my ( $query, $pos ) = @_;
+   return 0 unless $pos + 2 >= length($query) || substr($query, $pos + 2, 1) =~ m/\s/;
+   return 1;
+}
+
+# sql_skip_line_comment {{{3
+sub sql_skip_line_comment {
+   my ( $query, $pos ) = @_;
+   my $len = length($query);
+   my $i   = $pos;
+   $i++ while $i < $len && substr($query, $i, 1) ne "\n";
+   return $i;
+}
+
+# sql_skip_block_comment {{{3
+sub sql_skip_block_comment {
+   my ( $query, $pos ) = @_;
+   my $end = index($query, '*/', $pos + 2);
+   return $end >= 0 ? $end + 2 : length($query);
+}
+
+# sql_with_main_statement_is_select {{{3
+sub sql_with_main_statement_is_select {
+   my ( $tokens, $with_idx ) = @_;
+
+   for my $i ( $with_idx + 1 .. $#$tokens ) {
+      my $word = lc($tokens->[$i]->{word});
+      return $word eq 'select' if $word =~ m/^(?:select|insert|replace|update|delete|table)$/;
+   }
+
+   return 0;
+}
+
+# sql_select_part_pos {{{3
+sub sql_select_part_pos {
+   my ( $tokens, $start_idx ) = @_;
+
+   for my $i ( $start_idx .. $#$tokens ) {
+      my $word = lc($tokens->[$i]->{word});
+      return $tokens->[$i]->{pos} if $word eq 'select';
+      return $tokens->[$i]->{pos}
+         if $word eq 'with' && sql_with_main_statement_is_select($tokens, $i);
+   }
+
+   return;
+}
+
+# sql_create_select_part_pos {{{3
+sub sql_create_select_part_pos {
+   my ( $tokens ) = @_;
+
+   for my $i ( 1 .. $#$tokens - 1 ) {
+      next unless lc($tokens->[$i]->{word}) eq 'as';
+      my $next = lc($tokens->[$i + 1]->{word});
+      return $tokens->[$i + 1]->{pos} if $next eq 'select';
+      return $tokens->[$i + 1]->{pos}
+         if $next eq 'with' && sql_with_main_statement_is_select($tokens, $i + 1);
+   }
+
+   return;
+}
+
+# strip_on_duplicate_key_update {{{3
+sub strip_on_duplicate_key_update {
+   my ( $query ) = @_;
+   my @tokens = sql_top_level_keywords($query);
+
+   for my $i ( 0 .. $#tokens - 3 ) {
+      next unless lc($tokens[$i]->{word})     eq 'on';
+      next unless lc($tokens[$i + 1]->{word}) eq 'duplicate';
+      next unless lc($tokens[$i + 2]->{word}) eq 'key';
+      next unless lc($tokens[$i + 3]->{word}) eq 'update';
+      my $stripped = substr($query, 0, $tokens[$i]->{pos});
+      $stripped =~ s/\s+\z//;
+      return $stripped;
+   }
+
+   return $query;
 }
 
 # show_optimized_query {{{3
@@ -6276,10 +6696,9 @@ sub show_optimized_query {
       push @display_lines, no_ctrl_char($info->{query});
 
       eval {
-         if ( $db ) {
-            do_query($cxn, "use $db");
-         }
-         do_query( $cxn, 'EXPLAIN EXTENDED ' . $query ) or die "Can't explain query";
+         use_query_database($cxn, $meta->{dbh}, $db);
+         do_query( $cxn, explain_sql_for_optimized_query($meta->{dbh}, $query) )
+            or die "Can't explain query";
          my $sth = do_query($cxn, 'SHOW WARNINGS');
          my $res = $sth->fetchall_arrayref({});
 
@@ -9667,14 +10086,17 @@ sub analyze_query {
    return unless $info;
 
    my %actions = (
+      a => \&display_explain_analyze,
       e => \&display_explain,
       f => \&show_full_query,
+      j => \&display_explain_json,
       o => \&show_optimized_query,
+      t => \&display_explain_tree,
    );
    do {
       $actions{$action}->($info);
       print "\n";
-      $action = pause('Press e to explain, f for full query, o for optimized query');
+      $action = pause('Press e to explain, a to analyze, j for JSON, t for TREE, f for full query, o for optimized query');
    } while ( exists($actions{$action}) );
 }
 
@@ -10598,9 +11020,12 @@ innotop hides inactive processes and its own process.  You can toggle these on
 and off with the 'i' and 'a' keys.
 
 You can EXPLAIN a query from this mode with the 'e' key.  This displays the
-query's full text, the results of EXPLAIN, and in newer MySQL versions, even
-the optimized query resulting from EXPLAIN EXTENDED.  innotop also tries to
-rewrite certain queries to make them EXPLAIN-able.  For example, INSERT/SELECT
+query's full text and the tabular results of EXPLAIN.  You can also use 'a' to
+run EXPLAIN ANALYZE where the server supports it, 'j' and 't' from the query
+analysis prompt to display EXPLAIN FORMAT=JSON and EXPLAIN FORMAT=TREE, and 'o'
+to display optimizer rewrite notes.  EXPLAIN ANALYZE executes the query, so
+innotop asks for confirmation before running it.  innotop also tries to rewrite
+certain queries to make them EXPLAIN-able.  For example, INSERT/SELECT
 statements are rewritable.
 
 This mode displays the L<"q_header"> and L<"processlist"> tables by default.
