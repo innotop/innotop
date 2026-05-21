@@ -22,7 +22,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = '1.15.3';
+our $VERSION = '1.15.4';
 
 # Find the home directory; it's different on different OSes.
 our $homepath = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
@@ -402,11 +402,11 @@ sub parse_status_text {
    # too many locks to print, the output might be truncated)
 
    my $time_text;
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.[01234]\./) || ($mysqlversion =~ /^9\.2/) || 
-        ($mysqlversion =~ /^10\.[0123]\./) ) {
+   if ( uses_modern_innodb_timestamp($mysqlversion) ) {
       ( $time_text ) = $fulltext =~ m/^([0-9-]* [0-9:]*) [0-9a-fx]* INNODB MONITOR OUTPUT/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp_56( $time_text ) ];
-   } else {
+   }
+   else {
       ( $time_text ) = $fulltext =~ m/^$s INNODB MONITOR OUTPUT$/m;
       $innodb_data{'ts'} = [ parse_innodb_timestamp( $time_text ) ];
    }
@@ -564,6 +564,15 @@ sub parse_innodb_timestamp_56 {
    return ( $y, $m, $d, $h, $i, $s );
 }
 
+sub uses_modern_innodb_timestamp {
+   my ( $mysqlversion ) = @_;
+   return unless defined $mysqlversion;
+   return ($mysqlversion =~ /^5\.[67]\./)
+      || ($mysqlversion =~ /^8\.[01234]\./)
+      || ($mysqlversion =~ /^9\./)
+      || ($mysqlversion =~ /^10\.[0123]\./);
+}
+
 sub parse_fk_section {
    my ( $section, $complete, $debug, $full, $mysqlversion ) = @_;
    my $fulltext = $section->{'fulltext'};
@@ -571,10 +580,11 @@ sub parse_fk_section {
    return 0 unless $fulltext;
 
    my ( $ts, $type );
-   if ( ($mysqlversion =~ /^5.[67]\./) || ($mysqlversion =~ /^8\.[01234]\./) || ($mysqlversion =~ /^10.[0123]\./) ) {
+   if ( uses_modern_innodb_timestamp($mysqlversion) ) {
       ( $ts, $type ) = $fulltext =~ m/^([0-9-]* [0-9:]*)\s[0-9a-fx]*\s+(\w+)/m;
       $section->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
-   } else {
+   }
+   else {
       ( $ts, $type ) = $fulltext =~ m/^$s\s+(\w+)/m;
       $section->{'ts'} = [ parse_innodb_timestamp( $ts ) ];
    } 
@@ -828,13 +838,15 @@ sub parse_dl_section {
    my $fulltext = $dl->{'fulltext'};
    return 0 unless $fulltext;
 
-   my ( $ts ) = $fulltext =~ m/^$s$/m;
-   return 0 unless $ts;
-
-   if ( ($mysqlversion =~ /^5\.[67]\./) || ($mysqlversion =~ /^8\.0\./) || ($mysqlversion =~ /^10\.[0123]\./) ) {
+   my $ts;
+   if ( uses_modern_innodb_timestamp($mysqlversion) ) {
+      ( $ts ) = $fulltext =~ m/^(\d\d\d\d-\d\d-\d\d +\d+:\d\d:\d\d)$/m;
+      return 0 unless $ts;
       $dl->{'ts'} = [ parse_innodb_timestamp_56( $ts ) ];
    }
    else {
+      ( $ts ) = $fulltext =~ m/^$s$/m;
+      return 0 unless $ts;
       $dl->{'ts'} = [ parse_innodb_timestamp( $ts ) ];
    }
    $dl->{'timestring'} = ts_to_string($dl->{'ts'});
@@ -4566,8 +4578,8 @@ my %stmt_maker_for = (
       eval { # This can fail if the table doesn't exist, INFORMATION_SCHEMA doesn't exist, etc.
          my $cols = $dbh->selectall_arrayref(q{SHOW /*innotop*/ COLUMNS FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS});
          if ( @$cols ) {
-          if ($dbh->{mysql_serverinfo} =~ /^5.1/) {
-            $sth = $dbh->prepare(q{
+            if ($dbh->{mysql_serverinfo} =~ /^5.1/) {
+               $sth = $dbh->prepare(q{
                SELECT /*innotop*/
                   r.trx_mysql_thread_id                            AS waiting_thread,
                   r.trx_query                                      AS waiting_query,
@@ -4593,10 +4605,11 @@ my %stmt_maker_for = (
                   JOIN INFORMATION_SCHEMA.INNODB_LOCKS l ON  l.lock_id = w.requested_lock_id
                   LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST bp ON bp.id = b.trx_mysql_thread_id
                   LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST rp ON rp.id = r.trx_mysql_thread_id
-            });
-          } else {
-            ### 5.5, 5.6, 5.7
-            $sth = $dbh->prepare(q{
+               });
+            }
+            else {
+               ### 5.5, 5.6, 5.7
+               $sth = $dbh->prepare(q{
                SELECT /*innotop*/
                   r.trx_mysql_thread_id                            AS waiting_thread,
                   r.trx_query                                      AS waiting_query,
@@ -4622,8 +4635,8 @@ my %stmt_maker_for = (
                   JOIN INFORMATION_SCHEMA.INNODB_LOCKS l ON  l.lock_id = w.requested_lock_id
                   LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST bp ON bp.id = b.trx_mysql_thread_id
                   LEFT JOIN INFORMATION_SCHEMA.PROCESSLIST rp ON rp.id = r.trx_mysql_thread_id
-            });
-          }
+               });
+            }
          }
       };  ### End of eval SHOW COLUMNS FROM INFORMATION_SCHEMA.INNODB_LOCK_WAITS
 
@@ -4689,41 +4702,23 @@ my %stmt_maker_for = (
    },
    SHOW_MASTER_LOGS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare(version_ge( $dbh, '8.1' ) && !version_ge( $dbh, '10.0.0' )
-           ? 'SHOW /*innotop*/ BINARY LOGS'
-           : 'SHOW /*innotop*/ MASTER LOGS');
+      return $dbh->prepare(show_master_logs_sql($dbh));
    },
    SHOW_MASTER_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare(version_ge( $dbh, '8.2.0' ) && !version_ge( $dbh, '10.0.0' )
-           ? 'SHOW /*innotop*/ BINARY LOG STATUS'
-           : 'SHOW /*innotop*/ MASTER STATUS');
+      return $dbh->prepare(show_master_status_sql($dbh));
    },
    SHOW_SLAVE_STATUS => sub {
       my ( $dbh ) = @_;
-      return $dbh->prepare(version_ge( $dbh, '8.0.34' ) && !version_ge( $dbh, '10.0.0' )
-           ? 'SHOW /*innotop*/ REPLICA STATUS'
-           : 'SHOW /*innotop*/ SLAVE STATUS');
+      return $dbh->prepare(show_slave_status_sql($dbh));
    },
    GET_CHANNELS => sub {
       my ( $dbh ) = @_;
-      if (version_ge( $dbh, '10.0.2' )) {
-         # Not supported or MariaDB specific way to get channel list.
-         return $dbh->prepare('select "no_channels"');
-      } elsif ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^8/ ) ) { 
-            return $dbh->prepare('select CHANNEL_NAME from performance_schema.replication_applier_status;');
-      } else {
-            return $dbh->prepare('select "no_channels"');
-      }
+      return $dbh->prepare(get_channels_sql($dbh));
    },
    GET_GR_STATUS => sub {
         my ( $dbh ) = @_;
-        if ( ( $dbh->{mysql_serverinfo} =~ /^5.7/ ) || ( $dbh->{mysql_serverinfo} =~ /^[89]\./ ) ) { 
-           return $dbh->prepare('SELECT ms.*, m.member_host, m.member_port, m.member_state, m.member_role, m.member_version FROM performance_schema.replication_group_member_stats AS ms JOIN performance_schema.replication_group_members AS m USING(MEMBER_ID);');
-        } else {
-            # Not supported for MariaDB
-            return $dbh->prepare('select "no_channels"');
-        }    
+        return $dbh->prepare(get_group_replication_status_sql($dbh));
    },
    KILL_CONNECTION => sub {
       my ( $dbh ) = @_;
@@ -7806,8 +7801,100 @@ sub connect_to_db {
 # Compares versions like 5.0.27 and 4.1.15-standard-log
 sub version_ge {
    my ( $dbh, $target ) = @_;
-   my $version = sprintf('%03d%03d%03d', $dbh->{mysql_serverinfo} =~ m/^(\d+).(\d+).(\d+)/g);
-   return $version ge sprintf('%03d%03d%03d', $target =~ m/(\d+)/g);
+   return version_string($dbh->{mysql_serverinfo}) ge version_string($target);
+}
+
+sub version_string {
+   my ( $version ) = @_;
+   my ( $major, $minor, $patch ) = ($version || '') =~ m/^(\d+)(?:\.(\d+))?(?:\.(\d+))?/;
+   return sprintf('%03d%03d%03d', $major || 0, $minor || 0, $patch || 0);
+}
+
+sub mysql_is_mariadb {
+   my ( $dbh ) = @_;
+   return ($dbh->{mysql_serverinfo} || '') =~ m/mariadb/i;
+}
+
+sub mysql_version_ge_lt {
+   my ( $dbh, $min, $max ) = @_;
+   return version_ge($dbh, $min) && !version_ge($dbh, $max);
+}
+
+sub mysql_uses_oracle_replication_terms {
+   my ( $dbh ) = @_;
+   return !mysql_is_mariadb($dbh) && mysql_version_ge_lt($dbh, '8.0.34', '10.0.0');
+}
+
+sub mysql_supports_replication_channels {
+   my ( $dbh ) = @_;
+   return !mysql_is_mariadb($dbh) && mysql_version_ge_lt($dbh, '5.7.0', '10.0.0');
+}
+
+sub show_master_logs_sql {
+   my ( $dbh ) = @_;
+   return !mysql_is_mariadb($dbh) && mysql_version_ge_lt($dbh, '8.1.0', '10.0.0')
+      ? 'SHOW /*innotop*/ BINARY LOGS'
+      : 'SHOW /*innotop*/ MASTER LOGS';
+}
+
+sub show_master_status_sql {
+   my ( $dbh ) = @_;
+   return !mysql_is_mariadb($dbh) && mysql_version_ge_lt($dbh, '8.2.0', '10.0.0')
+      ? 'SHOW /*innotop*/ BINARY LOG STATUS'
+      : 'SHOW /*innotop*/ MASTER STATUS';
+}
+
+sub show_slave_status_sql {
+   my ( $dbh ) = @_;
+   return mysql_uses_oracle_replication_terms($dbh)
+      ? 'SHOW /*innotop*/ REPLICA STATUS'
+      : 'SHOW /*innotop*/ SLAVE STATUS';
+}
+
+sub get_channels_sql {
+   my ( $dbh ) = @_;
+   return mysql_supports_replication_channels($dbh)
+      ? 'select CHANNEL_NAME from performance_schema.replication_applier_status;'
+      : 'select "no_channels"';
+}
+
+sub get_group_replication_status_sql {
+   my ( $dbh ) = @_;
+   return mysql_supports_replication_channels($dbh)
+      ? 'SELECT ms.*, m.member_host, m.member_port, m.member_state, m.member_role, m.member_version FROM performance_schema.replication_group_member_stats AS ms JOIN performance_schema.replication_group_members AS m USING(MEMBER_ID);'
+      : 'select "no_channels"';
+}
+
+my %replication_status_alias_for = (
+   exec_source_log_pos    => 'exec_master_log_pos',
+   read_source_log_pos    => 'read_master_log_pos',
+   relay_source_log_file  => 'relay_master_log_file',
+   replica_io_running     => 'slave_io_running',
+   replica_io_state       => 'slave_io_state',
+   replica_sql_running    => 'slave_sql_running',
+   seconds_behind_source  => 'seconds_behind_master',
+   source_host            => 'master_host',
+   source_log_file        => 'master_log_file',
+   source_port            => 'master_port',
+   source_ssl_allowed     => 'master_ssl_allowed',
+   source_ssl_ca_file     => 'master_ssl_ca_file',
+   source_ssl_ca_path     => 'master_ssl_ca_path',
+   source_ssl_cert        => 'master_ssl_cert',
+   source_ssl_cipher      => 'master_ssl_cipher',
+   source_ssl_key         => 'master_ssl_key',
+   source_user            => 'master_user',
+   source_uuid            => 'master_uuid',
+);
+
+sub normalize_replication_status {
+   my ( $row ) = @_;
+   return $row unless ref($row) eq 'HASH';
+   foreach my $source ( keys %replication_status_alias_for ) {
+      next unless exists $row->{$source};
+      my $target = $replication_status_alias_for{$source};
+      $row->{$target} = $row->{$source} unless exists $row->{$target};
+   }
+   return $row;
 }
 
 # Extracts status values that can be gleaned from the DBD driver without doing a whole query.
@@ -9953,67 +10040,48 @@ sub get_master_slave_status {
 # Separated handling of slave status to support 5.7 and replication channels
 sub get_slave_status {
    my ($cxn, $channel) = @_;
-   	 my $chcxn = $channel . '=' . $cxn;
-         $vars{$chcxn}->{$clock} ||= {};
-         my $vars = $vars{$chcxn}->{$clock};
-         $vars->{chcxn} = $chcxn;
-         $vars->{Uptime_hires} ||= get_uptime($chcxn);
+   my $chcxn = $channel . '=' . $cxn;
+   $vars{$chcxn}->{$clock} ||= {};
+   my $vars = $vars{$chcxn}->{$clock};
+   $vars->{chcxn} = $chcxn;
+   $vars->{Uptime_hires} ||= get_uptime($chcxn);
 
-	 if ( $channel =~ /no_channels/ ) {
-         	my $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS') or next;
-         	my $res = $stmt->fetchall_arrayref({});
-       	   if ( $res && @$res ) {
-       	    	$res = $res->[0];
-
-               # patch terminology
-               foreach my $key (keys %$res) {
-                  if ($key =~ /^replica_/) {
-                     my $new_key = $key;
-                     $new_key =~ s/^replica_/slave_/;
-                     $res->{$new_key} = delete $res->{$key};
-                  } elsif ($key =~ /^source_/) {
-                     my $new_key = $key;
-                     $new_key =~ s/^source_/master_/;
-                     $res->{$new_key} = delete $res->{$key};
-                  } elsif ($key =~ /^seconds_behind_source/) {
-                     my $new_key = "seconds_behind_master";
-                     $res->{$new_key} = delete $res->{$key};
-                  }
-               }
-
-       	    	@{$vars}{ keys %$res } = values %$res;
-            	$vars->{Slave_ok} =
-               		(($res->{slave_sql_running} || 'Yes') eq 'Yes'
-               		&& ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
-       	   }
-       	   else {
-            	$vars->{Slave_ok} = 'Off';
-           }
-  	 } else {
-				 my $dbh = connect_to_db($cxn);
-             my $use_new_terms = version_ge($dbh, '8.0.34') && !version_ge($dbh, '10.0');
-             my $sql;
-				 if ($use_new_terms) {
-                  $sql = 'SHOW REPLICA STATUS FOR CHANNEL \'' . $channel . '\'';
-            } else {
-               $sql = 'SHOW SLAVE STATUS FOR CHANNEL \'' . $channel . '\'';
-             }
-				 my $stmt = $dbh->prepare($sql ) ;
-				 $stmt->execute();
-         		 my $res = $stmt->fetchall_arrayref({});
-         		 if ( $res && @$res ) {
-         		    $res = $res->[0];
-         		    @{$vars}{ keys %$res } = values %$res;
-         		    $vars->{Slave_ok} =
-         		       (($res->{slave_sql_running} || 'Yes') eq 'Yes'
-         		       && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
-         		 }
-		         else {
-       		   		 $vars->{Slave_ok} = 'Off';
-        		 }
-			}
-      	}
-	
+   if ( $channel =~ /no_channels/ ) {
+      my $stmt = do_stmt($cxn, 'SHOW_SLAVE_STATUS');
+      unless ( $stmt ) {
+         $vars->{Slave_ok} = 'Off';
+         return;
+      }
+      my $res = $stmt->fetchall_arrayref({});
+      if ( $res && @$res ) {
+         $res = normalize_replication_status($res->[0]);
+         @{$vars}{ keys %$res } = values %$res;
+         $vars->{Slave_ok} =
+            (($res->{slave_sql_running} || 'Yes') eq 'Yes'
+            && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
+      }
+      else {
+         $vars->{Slave_ok} = 'Off';
+      }
+   }
+   else {
+      my $dbh = connect_to_db($cxn);
+      my $sql = show_slave_status_sql($dbh) . ' FOR CHANNEL ' . $dbh->quote($channel);
+      my $stmt = $dbh->prepare($sql);
+      $stmt->execute();
+      my $res = $stmt->fetchall_arrayref({});
+      if ( $res && @$res ) {
+         $res = normalize_replication_status($res->[0]);
+         @{$vars}{ keys %$res } = values %$res;
+         $vars->{Slave_ok} =
+            (($res->{slave_sql_running} || 'Yes') eq 'Yes'
+            && ($res->{slave_io_running} || 'Yes') eq 'Yes') ? 'Yes' : 'No';
+      }
+      else {
+         $vars->{Slave_ok} = 'Off';
+      }
+   }
+}
    
 
 

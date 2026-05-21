@@ -3,8 +3,8 @@
 #
 Name:      innotop
 Summary:   A MySQL and InnoDB monitor program.
-Version:   1.15.3
-Release:   3%{?dist}
+Version:   1.15.4
+Release:   1%{?dist}
 Vendor:    Baron Schwartz <baron@percona.com>
 Packager:  Frederic Descamps <lefred@percona.com>
 License:   GPL/Artistic
@@ -122,6 +122,9 @@ find %{buildroot}%{_prefix}             \
 %defattr(-,root,root)
 
 %changelog
+* Wed May 20 2026 Innotop Developers <eslocombe@gmail.com> - 1.15.4-1
+ - Extend MySQL 9.x compatibility
+
 * Tue Apr 08 2025 yoku0825 <yoku0825@gmail.com> - 1.15.3-1
  - Support MySQL 9.2
 
