@@ -6427,7 +6427,7 @@ sub explain_sql_for_optimized_query {
 sub explain_analyze_sql_for {
    my ( $dbh, $query ) = @_;
 
-   if ( explain_server_is_mariadb($dbh) ) {
+   if ( mysql_is_mariadb($dbh) ) {
       return unless version_ge($dbh, '10.1.0');
       return "ANALYZE\n" . $query;
    }
@@ -6485,19 +6485,13 @@ sub use_database_sql_for {
 # explain_uses_format_traditional {{{3
 sub explain_uses_format_traditional {
    my ( $dbh ) = @_;
-   return !explain_server_is_mariadb($dbh) && version_ge($dbh, '8.0.0');
+   return !mysql_is_mariadb($dbh) && version_ge($dbh, '8.0.0');
 }
 
 # explain_supports_tree {{{3
 sub explain_supports_tree {
    my ( $dbh ) = @_;
-   return !explain_server_is_mariadb($dbh) && version_ge($dbh, '8.0.16');
-}
-
-# explain_server_is_mariadb {{{3
-sub explain_server_is_mariadb {
-   my ( $dbh ) = @_;
-   return ($dbh->{mysql_serverinfo} || '') =~ m/mariadb/i;
+   return !mysql_is_mariadb($dbh) && version_ge($dbh, '8.0.16');
 }
 
 # sql_top_level_keywords {{{3
